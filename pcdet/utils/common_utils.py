@@ -1,67 +1,26 @@
-import numpy as np
-import torch
 import logging
 import os
-import torch.multiprocessing as mp
-import torch.distributed as dist
-import subprocess
+import pickle
 import random
+import shutil
+import subprocess
+
+import numpy as np
+import torch
+import torch.distributed as dist
+import torch.multiprocessing as mp
 
 
-def rotate_pc_along_z(pc, rot_angle):
-    """
-    params pc: (N, 3+C), (N, 3) is in the LiDAR coordinate
-    params rot_angle: rad scalar
-    Output pc: updated pc with XYZ rotated
-    """
-    cosval = np.cos(rot_angle)
-    sinval = np.sin(rot_angle)
-    rotmat = np.array([[cosval, -sinval], [sinval, cosval]])
-    pc[:, 0:2] = np.dot(pc[:, 0:2], rotmat)
-    return pc
+def check_numpy_to_torch(x):
+    if isinstance(x, np.ndarray):
+        return torch.from_numpy(x).float(), True
+    return x, False
 
 
-def rotate_pc_along_z_torch(pc, rot_angle, inplace=True):
-    """
-    :param pc: (N, num_points, 3 + C) in the LiDAR coordinate
-    :param rot_angle: (N)
-    :return:
-    """
-    cosa = torch.cos(rot_angle).view(-1, 1)  # (N, 1)
-    sina = torch.sin(rot_angle).view(-1, 1)  # (N, 1)
-
-    raw_1 = torch.cat([cosa, -sina], dim=1)  # (N, 2)
-    raw_2 = torch.cat([sina, cosa], dim=1)  # (N, 2)
-    R = torch.cat((raw_1.unsqueeze(dim=1), raw_2.unsqueeze(dim=1)), dim=1)  # (N, 2, 2)
-
-    pc_temp = pc[:, :, 0:2]  # (N, 512, 2)
-
-    if inplace:
-        pc[:, :, 0:2] = torch.matmul(pc_temp, R)  # (N, 512, 2)
-    else:
-        xy_rotated = torch.matmul(pc_temp, R)  # (N, 512, 2)
-        pc = torch.cat((xy_rotated, pc[:, :, 2:]), dim=2)
-    return pc
-
-
-def mask_points_by_range(points, limit_range):
-    mask = (points[:, 0] >= limit_range[0]) & (points[:, 0] <= limit_range[3]) \
-           & (points[:, 1] >= limit_range[1]) & (points[:, 1] <= limit_range[4])
-    points = points[mask]
-    return points
-
-
-def enlarge_box3d(boxes3d, extra_width):
-    """
-    :param boxes3d: (N, 7) [x, y, z, w, l, h, ry] in LiDAR coords
-    """
-    if isinstance(boxes3d, np.ndarray):
-        large_boxes3d = boxes3d.copy()
-    else:
-        large_boxes3d = boxes3d.clone()
-    large_boxes3d[:, 3:6] += extra_width * 2
-    large_boxes3d[:, 2] -= extra_width  # bugfixed: here should be minus, not add in LiDAR, 20190508
-    return large_boxes3d
+def limit_period(val, offset=0.5, period=np.pi):
+    val, is_numpy = check_numpy_to_torch(val)
+    ans = val - torch.floor(val / period + offset) * period
+    return ans.numpy() if is_numpy else ans
 
 
 def drop_info_with_name(info, name):
@@ -72,10 +31,78 @@ def drop_info_with_name(info, name):
     return ret_info
 
 
-def drop_arrays_by_name(gt_names, used_classes):
-    inds = [i for i, x in enumerate(gt_names) if x not in used_classes]
-    inds = np.array(inds, dtype=np.int64)
-    return inds
+def rotate_points_along_z(points, angle):
+    """
+    Args:
+        points: (B, N, 3 + C)
+        angle: (B), angle along z-axis, angle increases x ==> y
+    Returns:
+
+    """
+    points, is_numpy = check_numpy_to_torch(points)
+    angle, _ = check_numpy_to_torch(angle)
+
+    cosa = torch.cos(angle)
+    sina = torch.sin(angle)
+    zeros = angle.new_zeros(points.shape[0])
+    ones = angle.new_ones(points.shape[0])
+    rot_matrix = torch.stack((
+        cosa,  sina, zeros,
+        -sina, cosa, zeros,
+        zeros, zeros, ones
+    ), dim=1).view(-1, 3, 3).float()
+    points_rot = torch.matmul(points[:, :, 0:3], rot_matrix)
+    points_rot = torch.cat((points_rot, points[:, :, 3:]), dim=-1)
+    return points_rot.numpy() if is_numpy else points_rot
+
+
+def mask_points_by_range(points, limit_range):
+    mask = (points[:, 0] >= limit_range[0]) & (points[:, 0] <= limit_range[3]) \
+           & (points[:, 1] >= limit_range[1]) & (points[:, 1] <= limit_range[4])
+    return mask
+
+
+def get_voxel_centers(voxel_coords, downsample_times, voxel_size, point_cloud_range):
+    """
+    Args:
+        voxel_coords: (N, 3)
+        downsample_times:
+        voxel_size:
+        point_cloud_range:
+
+    Returns:
+
+    """
+    assert voxel_coords.shape[1] == 3
+    voxel_centers = voxel_coords[:, [2, 1, 0]].float()  # (xyz)
+    voxel_size = torch.tensor(voxel_size, device=voxel_centers.device).float() * downsample_times
+    pc_range = torch.tensor(point_cloud_range[0:3], device=voxel_centers.device).float()
+    voxel_centers = (voxel_centers + 0.5) * voxel_size + pc_range
+    return voxel_centers
+
+
+def create_logger(log_file=None, rank=0, log_level=logging.INFO):
+    logger = logging.getLogger(__name__)
+    logger.setLevel(log_level if rank == 0 else 'ERROR')
+    formatter = logging.Formatter('%(asctime)s  %(levelname)5s  %(message)s')
+    console = logging.StreamHandler()
+    console.setLevel(log_level if rank == 0 else 'ERROR')
+    console.setFormatter(formatter)
+    logger.addHandler(console)
+    if log_file is not None:
+        file_handler = logging.FileHandler(filename=log_file)
+        file_handler.setLevel(log_level if rank == 0 else 'ERROR')
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+    return logger
+
+
+def set_random_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 def keep_arrays_by_name(gt_names, used_classes):
@@ -84,63 +111,15 @@ def keep_arrays_by_name(gt_names, used_classes):
     return inds
 
 
-def limit_period(val, offset=0.5, period=np.pi):
-    return val - np.floor(val / period + offset) * period
-
-
-def limit_period_torch(val, offset=0.5, period=np.pi):
-    return val - torch.floor(val / period + offset) * period
-
-
-def dict_select(dict_src, inds):
-    for key, val in dict_src.items():
-        if isinstance(val, dict):
-            dict_select(val, inds)
-        else:
-            dict_src[key] = val[inds]
-
-
-def create_logger(log_file, rank=0, log_level=logging.INFO):
-    logger = logging.getLogger(__name__)
-    logger.setLevel(log_level if rank == 0 else 'ERROR')
-    formatter = logging.Formatter('%(asctime)s  %(levelname)5s  %(message)s')
-    console = logging.StreamHandler()
-    console.setLevel(log_level if rank == 0 else 'ERROR')
-    console.setFormatter(formatter)
-    file_handler = logging.FileHandler(filename=log_file)
-    file_handler.setLevel(log_level if rank == 0 else 'ERROR')
-    file_handler.setFormatter(formatter)
-    logger.addHandler(console)
-    logger.addHandler(file_handler)
-    return logger
-
-
-def init_dist_pytorch(batch_size, tcp_port, local_rank, backend='nccl'):
-    if mp.get_start_method(allow_none=True) is None:
-        mp.set_start_method('spawn')
-
-    num_gpus = torch.cuda.device_count()
-    torch.cuda.set_device(local_rank % num_gpus)
-    dist.init_process_group(
-        backend=backend,
-        init_method='tcp://127.0.0.1:%d' % tcp_port,
-        rank=local_rank,
-        world_size=num_gpus
-    )
-    assert batch_size % num_gpus == 0, 'Batch size should be matched with GPUS: (%d, %d)' % (batch_size, num_gpus)
-    batch_size_each_gpu = batch_size // num_gpus
-    rank = dist.get_rank()
-    return batch_size_each_gpu, rank
-
-
-def init_dist_slurm(batch_size, tcp_port, local_rank=None, backend='nccl'):
+def init_dist_slurm(tcp_port, local_rank, backend='nccl'):
     """
     modified from https://github.com/open-mmlab/mmdetection
-    :param batch_size:
-    :param tcp_port:
-    :param local_rank:
-    :param backend:
-    :return:
+    Args:
+        tcp_port:
+        backend:
+
+    Returns:
+
     """
     proc_id = int(os.environ['SLURM_PROCID'])
     ntasks = int(os.environ['SLURM_NTASKS'])
@@ -155,15 +134,62 @@ def init_dist_slurm(batch_size, tcp_port, local_rank=None, backend='nccl'):
     dist.init_process_group(backend=backend)
 
     total_gpus = dist.get_world_size()
-    assert batch_size % total_gpus == 0, 'Batch size should be matched with GPUS: (%d, %d)' % (batch_size, total_gpus)
-    batch_size_each_gpu = batch_size // total_gpus
     rank = dist.get_rank()
-    return batch_size_each_gpu, rank
+    return total_gpus, rank
 
 
-def set_random_seed(seed):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+def init_dist_pytorch(tcp_port, local_rank, backend='nccl'):
+    if mp.get_start_method(allow_none=True) is None:
+        mp.set_start_method('spawn')
+
+    num_gpus = torch.cuda.device_count()
+    torch.cuda.set_device(local_rank % num_gpus)
+    dist.init_process_group(
+        backend=backend,
+        init_method='tcp://127.0.0.1:%d' % tcp_port,
+        rank=local_rank,
+        world_size=num_gpus
+    )
+    rank = dist.get_rank()
+    return num_gpus, rank
+
+
+def get_dist_info():
+    if torch.__version__ < '1.0':
+        initialized = dist._initialized
+    else:
+        if dist.is_available():
+            initialized = dist.is_initialized()
+        else:
+            initialized = False
+    if initialized:
+        rank = dist.get_rank()
+        world_size = dist.get_world_size()
+    else:
+        rank = 0
+        world_size = 1
+    return rank, world_size
+
+
+def merge_results_dist(result_part, size, tmpdir):
+    rank, world_size = get_dist_info()
+    os.makedirs(tmpdir, exist_ok=True)
+
+    dist.barrier()
+    pickle.dump(result_part, open(os.path.join(tmpdir, 'result_part_{}.pkl'.format(rank)), 'wb'))
+    dist.barrier()
+
+    if rank != 0:
+        return None
+
+    part_list = []
+    for i in range(world_size):
+        part_file = os.path.join(tmpdir, 'result_part_{}.pkl'.format(i))
+        part_list.append(pickle.load(open(part_file, 'rb')))
+
+    ordered_results = []
+    for res in zip(*part_list):
+        ordered_results.extend(list(res))
+    ordered_results = ordered_results[:size]
+    shutil.rmtree(tmpdir)
+    return ordered_results

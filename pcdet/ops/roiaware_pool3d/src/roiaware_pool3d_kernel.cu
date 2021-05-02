@@ -1,7 +1,7 @@
-/* 
-RoI-aware point cloud feature pooling 
+/*
+RoI-aware point cloud feature pooling
 Written by Shaoshuai Shi
-All Rights Reserved 2019. 
+All Rights Reserved 2019-2020.
 */
 
 
@@ -13,10 +13,8 @@ All Rights Reserved 2019.
 // #define DEBUG
 
 
-__device__ inline void lidar_to_local_coords(float shift_x, float shift_y, float rz, float &local_x, float &local_y){
-    // should rotate pi/2 + alpha to translate LiDAR to local
-    float rot_angle = rz + M_PI / 2;
-    float cosa = cos(rot_angle), sina = sin(rot_angle);
+__device__ inline void lidar_to_local_coords(float shift_x, float shift_y, float rot_angle, float &local_x, float &local_y){
+    float cosa = cos(-rot_angle), sina = sin(-rot_angle);
     local_x = shift_x * cosa + shift_y * (-sina);
     local_y = shift_x * sina + shift_y * cosa;
 }
@@ -24,22 +22,23 @@ __device__ inline void lidar_to_local_coords(float shift_x, float shift_y, float
 
 __device__ inline int check_pt_in_box3d(const float *pt, const float *box3d, float &local_x, float &local_y){
     // param pt: (x, y, z)
-    // param box3d: (cx, cy, cz, w, l, h, rz) in LiDAR coordinate, cz in the bottom center
+    // param box3d: [x, y, z, dx, dy, dz, heading] (x, y, z) is the box center
+
+    const float MARGIN = 1e-5;
     float x = pt[0], y = pt[1], z = pt[2];
     float cx = box3d[0], cy = box3d[1], cz = box3d[2];
-    float w = box3d[3], l = box3d[4], h = box3d[5], rz = box3d[6];
-    cz += h / 2.0;  // shift to the center since cz in box3d is the bottom center
+    float dx = box3d[3], dy = box3d[4], dz = box3d[5], rz = box3d[6];
 
-    if (fabsf(z - cz) > h / 2.0) return 0;
+    if (fabsf(z - cz) > dz / 2.0) return 0;
     lidar_to_local_coords(x - cx, y - cy, rz, local_x, local_y);
-    float in_flag = (local_x > -l / 2.0) & (local_x < l / 2.0) & (local_y > -w / 2.0) & (local_y < w / 2.0);
+    float in_flag = (fabs(local_x) < dx / 2.0 + MARGIN) & (fabs(local_y) < dy / 2.0 + MARGIN);
     return in_flag;
 }
 
 
 __global__ void generate_pts_mask_for_box3d(int boxes_num, int pts_num, int out_x, int out_y, int out_z,
     const float *rois, const float *pts, int *pts_mask){
-    // params rois: (N, 7) [x, y, z, w, l, h, rz] in LiDAR coordinate
+    // params rois: [x, y, z, dx, dy, dz, heading] (x, y, z) is the box center
     // params pts: (npoints, 3) [x, y, z]
     // params pts_mask: (N, npoints): -1 means point doesnot in this box, otherwise: encode (x_idxs, y_idxs, z_idxs) by binary bit
     int pt_idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -56,26 +55,21 @@ __global__ void generate_pts_mask_for_box3d(int boxes_num, int pts_num, int out_
     pts_mask[0] = -1;
     if (cur_in_flag > 0){
         float local_z = pts[2] - rois[2];
-        float w = rois[3], l = rois[4], h = rois[5];
+        float dx = rois[3], dy = rois[4], dz = rois[5];
 
-        float x_res = l / out_x;
-        float y_res = w / out_y;
-        float z_res = h / out_z;
+        float x_res = dx / out_x;
+        float y_res = dy / out_y;
+        float z_res = dz / out_z;
 
-        unsigned int x_idx = int((local_x + l / 2) / x_res);
-        unsigned int y_idx = int((local_y + w / 2) / y_res);
-        unsigned int z_idx = int(local_z / z_res);
+        unsigned int x_idx = int((local_x + dx / 2) / x_res);
+        unsigned int y_idx = int((local_y + dy / 2) / y_res);
+        unsigned int z_idx = int((local_z + dz / 2) / z_res);
 
         x_idx = min(max(x_idx, 0), out_x - 1);
         y_idx = min(max(y_idx, 0), out_y - 1);
         z_idx = min(max(z_idx, 0), out_z - 1);
 
         unsigned int idx_encoding = (x_idx << 16) + (y_idx << 8) + z_idx;
-#ifdef DEBUG
-        printf("mask: pts_%d(%.3f, %.3f, %.3f), local(%.3f, %.3f, %.3f), idx(%d, %d, %d), res(%.3f, %.3f, %.3f), idx_encoding=%x\n",
-            pt_idx, pts[0], pts[1], pts[2], local_x, local_y, local_z, x_idx, y_idx, z_idx, x_res, y_res, z_res, idx_encoding);
-#endif
-
         pts_mask[0] = idx_encoding;
     }
 }
@@ -198,8 +192,8 @@ __global__ void roiaware_avgpool3d(int boxes_num, int pts_num, int channels, int
 
 void roiaware_pool3d_launcher(int boxes_num, int pts_num, int channels, int max_pts_each_voxel, int out_x, int out_y, int out_z,
     const float *rois, const float *pts, const float *pts_feature, int *argmax, int *pts_idx_of_voxels, float *pooled_features, int pool_method){
-    // params rois: (N, 7) [x, y, z, w, l, h, rz] in LiDAR coordinate
-    // params pts: (npoints, 3) [x, y, z] in LiDAR coordinate
+    // params rois: (N, 7) [x, y, z, dx, dy, dz, heading] (x, y, z) is the box center
+    // params pts: (npoints, 3) [x, y, z]
     // params pts_feature: (npoints, C)
     // params argmax: (N, out_x, out_y, out_z, C)
     // params pts_idx_of_voxels: (N, out_x, out_y, out_z, max_pts_each_voxel)
@@ -318,7 +312,7 @@ void roiaware_pool3d_backward_launcher(int boxes_num, int out_x, int out_y, int 
 
 __global__ void points_in_boxes_kernel(int batch_size, int boxes_num, int pts_num, const float *boxes,
     const float *pts, int *box_idx_of_points){
-    // params boxes: (B, N, 7) [x, y, z, w, l, h, rz] in LiDAR coordinate, z is the bottom center, each box DO NOT overlaps
+    // params boxes: (B, N, 7) [x, y, z, dx, dy, dz, heading] (x, y, z) is the box center
     // params pts: (B, npoints, 3) [x, y, z] in LiDAR coordinate
     // params boxes_idx_of_points: (B, npoints), default -1
 
@@ -344,8 +338,8 @@ __global__ void points_in_boxes_kernel(int batch_size, int boxes_num, int pts_nu
 
 void points_in_boxes_launcher(int batch_size, int boxes_num, int pts_num, const float *boxes,
     const float *pts, int *box_idx_of_points){
-    // params boxes: (B, N, 7) [x, y, z, w, l, h, rz] in LiDAR coordinate, z is the bottom center, each box DO NOT overlaps
-    // params pts: (B, npoints, 3) [x, y, z] in LiDAR coordinate
+    // params boxes: (B, N, 7) [x, y, z, dx, dy, dz, heading] (x, y, z) is the box center
+    // params pts: (B, npoints, 3) [x, y, z]
     // params boxes_idx_of_points: (B, npoints), default -1
     cudaError_t err;
 

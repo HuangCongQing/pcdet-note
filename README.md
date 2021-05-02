@@ -1,170 +1,177 @@
-# PCDet: 3D Point Cloud Detection
+<img src="docs/open_mmlab.png" align="right" width="30%">
 
-`PCDet` is a general PyTorch-based codebase for 3D object detection from point cloud.
-<br>
+# OpenPCDet
 
-<p align="middle">
-  <img src="docs/demo_01.png" width="430" height="380"/>
-  <img src="docs/demo_02.png" width="430" height="380"/> 
-</p>
+`OpenPCDet` is a clear, simple, self-contained open source project for LiDAR-based 3D object detection. 
+
+It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/1812.04244), [`[Part-A^2 net]`](https://arxiv.org/abs/1907.03670) and [`[PV-RCNN]`](https://arxiv.org/abs/1912.13192). 
+
+
+## Overview
+- [Changelog](#changelog)
+- [Design Pattern](#openpcdet-design-pattern)
+- [Model Zoo](#model-zoo)
+- [Installation](docs/INSTALL.md)
+- [Quick Demo](docs/DEMO.md)
+- [Getting Started](docs/GETTING_STARTED.md)
+- [Citation](#citation)
+
+
+## Changelog
+[2020-11-27] **Bugfixed:** Please re-prepare the validation infos of Waymo dataset (version 1.2) if you would like to 
+use our provided Waymo evaluation tool (see [PR](https://github.com/open-mmlab/OpenPCDet/pull/383)). 
+Note that you do not need to re-prepare the training data and ground-truth database. 
+
+[2020-11-10] **NEW:** The [Waymo Open Dataset](#waymo-open-dataset-baselines) has been supported with state-of-the-art results. Currently we provide the 
+configs and results of `SECOND`, `PartA2` and `PV-RCNN` on the Waymo Open Dataset, and more models could be easily supported by modifying their dataset configs. 
+
+[2020-08-10] Bugfixed: The provided NuScenes models have been updated to fix the loading bugs. Please redownload it if you need to use the pretrained NuScenes models.
+
+[2020-07-30] `OpenPCDet` v0.3.0 is released with the following features:
+   * The Point-based and Anchor-Free models ([`PointRCNN`](#KITTI-3D-Object-Detection-Baselines), [`PartA2-Free`](#KITTI-3D-Object-Detection-Baselines)) are supported now.
+   * The NuScenes dataset is supported with strong baseline results ([`SECOND-MultiHead (CBGS)`](#NuScenes-3D-Object-Detection-Baselines) and [`PointPillar-MultiHead`](#NuScenes-3D-Object-Detection-Baselines)).
+   * High efficiency than last version, support **PyTorch 1.1~1.7** and **spconv 1.0~1.2** simultaneously.
+   
+[2020-07-17]  Add simple visualization codes and a quick demo to test with custom data. 
+
+[2020-06-24] `OpenPCDet` v0.2.0 is released with pretty new structures to support more models and datasets. 
+
+[2020-03-16] `OpenPCDet` v0.1.0 is released. 
+
 
 ## Introduction
-`PCDet` is a general PyTorch-based codebase for 3D object detection from point cloud. 
-It currently supports several state-of-the-art 3D object detection methods (`PointPillar`, `SECOND`, `Part-A^2 Net`) with highly refactored codes for both one-stage and two-stage frameworks.
 
-This is also the official code release of [`Part-A^2 net`](https://arxiv.org/abs/1907.03670). 
 
-Note that currently this framework mainly contains the voxel-based approaches and we are going to support more point-based approaches in the future. 
+### What does `OpenPCDet` toolbox do?
+
+Note that we have upgrated `PCDet` from `v0.1` to `v0.2` with pretty new structures to support various datasets and models.
+
+`OpenPCDet` is a general PyTorch-based codebase for 3D object detection from point cloud. 
+It currently supports multiple state-of-the-art 3D object detection methods with highly refactored codes for both one-stage and two-stage 3D detection frameworks.
+
+Based on `OpenPCDet` toolbox, we win the Waymo Open Dataset challenge in [3D Detection](https://waymo.com/open/challenges/3d-detection/), 
+[3D Tracking](https://waymo.com/open/challenges/3d-tracking/), [Domain Adaptation](https://waymo.com/open/challenges/domain-adaptation/) 
+three tracks among all LiDAR-only methods, and the Waymo related models will be released to `OpenPCDet` soon.    
+
+We are actively updating this repo currently, and more datasets and models will be supported soon. 
+Contributions are also welcomed. 
+
+### `OpenPCDet` design pattern
+
+* Data-Model separation with unified point cloud coordinate for easily extending to custom datasets:
+<p align="center">
+  <img src="docs/dataset_vs_model.png" width="95%" height="320">
+</p>
+
+* Unified 3D box definition: (x, y, z, dx, dy, dz, heading).
+
+* Flexible and clear model structure to easily support various 3D detection models: 
+<p align="center">
+  <img src="docs/model_framework.png" width="95%">
+</p>
+
+* Support various models within one framework as: 
+<p align="center">
+  <img src="docs/multiple_models_demo.png" width="95%">
+</p>
+
 
 ### Currently Supported Features
+
 - [x] Support both one-stage and two-stage 3D object detection frameworks
-- [x] Distributed training with multiple GPUs and multiple machines, cost about 5 hours to achieve SoTA results on KITTI
-- [x] Clear code structure for supporting more datasets and approaches
-- [x] RoI-aware point cloud pooling
-- [x] GPU version 3D IoU calculation and rotated NMS
+- [x] Support distributed training & testing with multiple GPUs and multiple machines
+- [x] Support multiple heads on different scales to detect different classes
+- [x] Support stacked version set abstraction to encode various number of points in different scenes
+- [x] Support Adaptive Training Sample Selection (ATSS) for target assignment
+- [x] Support RoI-aware point cloud pooling & RoI-grid point cloud pooling
+- [x] Support GPU version 3D IoU calculation and rotated NMS 
+
 
 ## Model Zoo
 
 ### KITTI 3D Object Detection Baselines
-Supported methods are shown in the below table. The results are the 3D detection performance of car class on the *val* set of KITTI dataset.
-All models are trained with 8 GPUs and are available for download.
+Selected supported methods are shown in the below table. The results are the 3D detection performance of moderate difficulty on the *val* set of KITTI dataset.
+* All models are trained with 8 GTX 1080Ti GPUs and are available for download. 
+* The training time is measured with 8 TITAN XP GPUs and PyTorch 1.5.
 
-|                                             | training time | AP_Easy | AP_Mod. | AP_Hard | download  |
-|---------------------------------------------|:-------------:|:-------:|:-------:|:-------:|:---------:|
-| [PointPillar](tools/cfgs/pointpillar.yaml)  | ~2hours       | 87.37   | 77.30   | 74.02   | [model-18M](https://drive.google.com/open?id=1EIXknJF3ME8LLvC2chB7L52U6XGU_bxg) | 
-| [SECOND](tools/cfgs/second.yaml)            | ~2hours       | 88.46   | 78.46   | 76.63   | [model-20M](https://drive.google.com/open?id=1Nx_STdaItqrnW8EqPHSDIDZXCF2PYYE-) |
-| [Part-A^2](tools/cfgs/PartA2_car.yaml)      | ~5hours       | 89.66   | 79.45   | 78.80   | [model-209M](https://drive.google.com/open?id=1D-lxyPww80H-zEdheaDTO6BfxCFiXOEo) |
-| [Part-A^2-fc](tools/cfgs/PartA2_fc.yaml)    | ~5hours       | 89.57   | 79.31   | 78.61   | [model-244M](https://drive.google.com/open?id=1HypkHBfcKWEdP5RLh6CmT77L1gXDck6D) |
+|                                             | training time | Car@R11 | Pedestrian@R11 | Cyclist@R11  | download | 
+|---------------------------------------------|----------:|:-------:|:-------:|:-------:|:---------:|
+| [PointPillar](tools/cfgs/kitti_models/pointpillar.yaml) |~1.2 hours| 77.28 | 52.29 | 62.68 | [model-18M](https://drive.google.com/file/d/1wMxWTpU1qUoY3DsCH31WJmvJxcjFXKlm/view?usp=sharing) | 
+| [SECOND](tools/cfgs/kitti_models/second.yaml)       |  ~1.7 hours  | 78.62 | 52.98 | 67.15 | [model-20M](https://drive.google.com/file/d/1-01zsPOsqanZQqIIyy7FpNXStL3y4jdR/view?usp=sharing) |
+| [PointRCNN](tools/cfgs/kitti_models/pointrcnn.yaml) | ~3 hours | 78.70 | 54.41 | 72.11 | [model-16M](https://drive.google.com/file/d/1BCX9wMn-GYAfSOPpyxf6Iv6fc0qKLSiU/view?usp=sharing)| 
+| [PointRCNN-IoU](tools/cfgs/kitti_models/pointrcnn_iou.yaml) | ~3 hours | 78.75 | 58.32 | 71.34 | [model-16M](https://drive.google.com/file/d/1V0vNZ3lAHpEEt0MlT80eL2f41K2tHm_D/view?usp=sharing)|
+| [Part-A^2-Free](tools/cfgs/kitti_models/PartA2_free.yaml)   | ~3.8 hours| 78.72 | 65.99 | 74.29 | [model-226M](https://drive.google.com/file/d/1lcUUxF8mJgZ_e-tZhP1XNQtTBuC-R0zr/view?usp=sharing) |
+| [Part-A^2-Anchor](tools/cfgs/kitti_models/PartA2.yaml)    | ~4.3 hours| 79.40 | 60.05 | 69.90 | [model-244M](https://drive.google.com/file/d/10GK1aCkLqxGNeX3lVu8cLZyE0G8002hY/view?usp=sharing) |
+| [PV-RCNN](tools/cfgs/kitti_models/pv_rcnn.yaml) | ~5 hours| 83.61 | 57.90 | 70.47 | [model-50M](https://drive.google.com/file/d/1lIOq4Hxr0W3qsX83ilQv0nk1Cls6KAr-/view?usp=sharing) |
 
+### NuScenes 3D Object Detection Baselines
+All models are trained with 8 GTX 1080Ti GPUs and are available for download.
+
+|                                             | mATE | mASE | mAOE | mAVE | mAAE | mAP | NDS | download | 
+|---------------------------------------------|----------:|:-------:|:-------:|:-------:|:---------:|:-------:|:-------:|:---------:|
+| [PointPillar-MultiHead](tools/cfgs/nuscenes_models/cbgs_pp_multihead.yaml) | 33.87	| 26.00 | 32.07	| 28.74 | 20.15 | 44.63 | 58.23	 | [model-23M](https://drive.google.com/file/d/1p-501mTWsq0G9RzroTWSXreIMyTUUpBM/view?usp=sharing) | 
+| [SECOND-MultiHead (CBGS)](tools/cfgs/nuscenes_models/cbgs_second_multihead.yaml) | 31.15 |	25.51 |	26.64 | 26.26 | 20.46 | 50.59 | 62.29 | [model-35M](https://drive.google.com/file/d/1bNzcOnE3u9iooBFMk2xK7HqhdeQ_nwTq/view?usp=sharing) |
+
+### Waymo Open Dataset Baselines
+We provide the setting of [`DATA_CONFIG.SAMPLED_INTERVAL`](tools/cfgs/dataset_configs/waymo_dataset.yaml) on the Waymo Open Dataset (WOD) to subsample partial samples for training and evaluation, 
+so you could also play with WOD by setting a smaller `DATA_CONFIG.SAMPLED_INTERVAL` even if you only have limited GPU resources. 
+
+By default, all models are trained with **20% data (~32k frames)** of all the training samples on 8 GTX 1080Ti GPUs, and the results of each cell here are mAP/mAPH calculated by the official Waymo evaluation metrics on the **whole** validation set (version 1.2).    
+
+|                                             | Vec_L1 | Vec_L2 | Ped_L1 | Ped_L2 | Cyc_L1 | Cyc_L2 |  
+|---------------------------------------------|----------:|:-------:|:-------:|:-------:|:-------:|:-------:|
+| [SECOND](tools/cfgs/waymo_models/second.yaml) | 68.03/67.44	| 59.57/59.04 | 61.14/50.33	| 53.00/43.56 | 54.66/53.31 | 52.67/51.37 | 
+| [Part-A^2-Anchor](tools/cfgs/waymo_models/PartA2.yaml) | 71.82/71.29 | 64.33/63.82 | 63.15/54.96 | 54.24/47.11 | 65.23/63.92 | 62.61/61.35 |
+| [PV-RCNN](tools/cfgs/waymo_models/pv_rcnn.yaml) | 74.06/73.38 | 64.99/64.38 |	62.66/52.68 | 53.80/45.14 |	63.32/61.71	| 60.72/59.18 | 
+
+We could not provide the above pretrained models due to [Waymo Dataset License Agreement](https://waymo.com/open/terms/), 
+but you could easily achieve similar performance by training with the default configs.
+
+
+
+### Other datasets
+More datasets are on the way. 
 
 ## Installation
 
-### Requirements
-All the codes are tested in the following environment:
-* Linux (tested on Ubuntu 14.04/16.04)
-* Python 3.6+
-* PyTorch 1.1 or higher
-* CUDA 9.0 or higher
+Please refer to [INSTALL.md](docs/INSTALL.md) for the installation of `OpenPCDet`.
 
 
-### Install `pcdet`
-1. Clone this repository.
-```shell
-git clone https://github.com/sshaoshuai/PCDet.git
-```
-
-2. Install the dependent libraries as follows:
-
-* Install the dependent python libraries: 
-```
-pip install -r requirements.txt 
-```
-
-* Install the SparseConv library, we use the non-official implementation from [`spconv`](https://github.com/traveller59/spconv). Note that we use an old version of `spconv`, make sure you install the `spconv v1.0` ([commit 8da6f96](https://github.com/traveller59/spconv/tree/8da6f967fb9a054d8870c3515b1b44eca2103634)) instead of the latest one.
-
-3. Install this `pcdet` library by running the following command:
-```shell
-python setup.py develop
-```
-
-## Dataset Preparation
-
-Currently we only support KITTI dataset, and contributions are welcomed to support more datasets.
-
-### KITTI Dataset
-* Please download the official [KITTI 3D object detection](http://www.cvlibs.net/datasets/kitti/eval_object.php?obj_benchmark=3d) dataset and organize the downloaded files as follows (the road planes could be downloaded from [here](https://drive.google.com/file/d/1d5mq0RXRnvHPVeKx6Q612z0YRO1t2wAp/view?usp=sharing), which are optional for data augmentation in the training): 
-
-```
-PCDet
-├── data
-│   ├── kitti
-│   │   │──ImageSets
-│   │   │──training
-│   │   │   ├──calib & velodyne & label_2 & image_2 & (optional: planes)
-│   │   │──testing
-│   │   │   ├──calib & velodyne & image_2
-├── pcdet
-├── tools
-```
-
-* Generate the data infos by running the following command in the path `pcdet/datasets/kitti`: 
-```python 
-python kitti_dataset.py create_kitti_infos
-```
+## Quick Demo
+Please refer to [DEMO.md](docs/DEMO.md) for a quick demo to test with a pretrained model and 
+visualize the predicted results on your custom data or the original KITTI data.
 
 ## Getting Started
-All the config files are within `tools/cfgs/`. 
 
-### Test and evaluate the pretrained models
-* Test with a pretrained model: 
-```shell script
-python test.py --cfg_file ${CONFIG_FILE} --batch_size 4 --ckpt ${CKPT}
-```
-
-* For example, for testing with the above provided `Part-A^2` model, please run the following command (here we add `--set` to modify some default parameters to match with the training setting of the provided `Part-A^2` model, and other provided models do not need to add it): 
-
-```shell script 
-python test.py --cfg_file cfgs/PartA2_car.yaml --batch_size 4 --ckpt PartA2.pth \ 
-    --set MODEL.RPN.BACKBONE.NAME UNetV0 MODEL.RPN.RPN_HEAD.ARGS use_binary_dir_classifier:True
-```
-
-* To evaluate all the saved checkpoints of a specific training setting and draw the performance curve on the Tensorboard, add the `--eval_all` argument: 
-```shell script
-python test.py --cfg_file ${CONFIG_FILE} --batch_size 4 --eval_all
-```
+Please refer to [GETTING_STARTED.md](docs/GETTING_STARTED.md) to learn more usage about this project.
 
 
-### Train a model
-Currently, to train `PointPillar` or `SECOND` or `PartA2`, the `--batch_size` depends on the number of your training GPUs as we use `${BATCH_SIZE}=4*${NUM_GPUS}`, i.e., `--batch_size 32` for training with 8 GPUs. 
+## License
 
-* Train with multiple GPUs:
-```shell script
-sh scripts/dist_train.sh ${NUM_GPUS} \ 
-    --cfg_file ${CONFIG_FILE} --batch_size ${BATCH_SIZE}
-```
-
-* Train with multiple machines:
-```shell script
-sh scripts/slurm_train.sh ${PARTITION} ${JOB_NAME} ${NUM_GPUS} \ 
-    --cfg_file ${CONFIG_FILE} --batch_size ${BATCH_SIZE}
-```
-
-* Train with a single GPU:
-```shell script
-python train.py --cfg_file ${CONFIG_FILE} --batch_size ${BATCH_SIZE}
-```
+`OpenPCDet` is released under the [Apache 2.0 license](LICENSE).
 
 ## Acknowledgement
-We would like to thank for [second.pytorch](https://github.com/traveller59/second.pytorch) for providing the original implementation of the one-stage voxel-based framework, 
-and there are also some parts of the codes that are modified from [PointRCNN](https://github.com/sshaoshuai/PointRCNN). 
+`OpenPCDet` is an open source project for LiDAR-based 3D scene perception that supports multiple
+LiDAR-based perception models as shown above. Some parts of `PCDet` are learned from the official released codes of the above supported methods. 
+We would like to thank for their proposed methods and the official implementation.   
 
 We hope that this repo could serve as a strong and flexible codebase to benefit the research community by speeding up the process of reimplementing previous works and/or developing new methods.
 
 
 ## Citation 
-If you find this work useful in your research, please consider cite:
+If you find this project useful in your research, please consider cite:
+
+
 ```
-@article{shi2020points,
-  title={From Points to Parts: 3D Object Detection from Point Cloud with Part-aware and Part-aggregation Network},
-  author={Shi, Shaoshuai and Wang, Zhe and Shi, Jianping and Wang, Xiaogang and Li, Hongsheng},
-  journal={IEEE Transactions on Pattern Analysis and Machine Intelligence},
-  year={2020},
-  publisher={IEEE}
+@misc{openpcdet2020,
+    title={OpenPCDet: An Open-source Toolbox for 3D Object Detection from Point Clouds},
+    author={OpenPCDet Development Team},
+    howpublished = {\url{https://github.com/open-mmlab/OpenPCDet}},
+    year={2020}
 }
 ```
 
-and / or
+## Contribution
+Welcome to be a member of the OpenPCDet development team by contributing to this repo, and feel free to contact us for any potential contributions. 
 
-```
-@inproceedings{shi2019pointrcnn,
-  title={PointRCNN: 3d Object Progposal Generation and Detection from Point Cloud},
-  author={Shi, Shaoshuai and Wang, Xiaogang and Li, Hongsheng},
-  booktitle={Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition},
-  pages={770--779},
-  year={2019}
-}
-```
-
-## Contact
-Should you have any question, please contact Shaoshuai Shi ([@sshaoshuai](http://github.com/sshaoshuai)).
 

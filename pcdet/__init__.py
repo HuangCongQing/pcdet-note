@@ -1,5 +1,5 @@
-import os
 import subprocess
+from pathlib import Path
 
 from .version import __version__
 
@@ -9,7 +9,7 @@ __all__ = [
 
 
 def get_git_commit_number():
-    if not os.path.exists('../.git'):
+    if not (Path(__file__).parent / '../.git').exists():
         return '0000000'
 
     cmd_out = subprocess.run(['git', 'rev-parse', 'HEAD'], stdout=subprocess.PIPE)
@@ -19,6 +19,6 @@ def get_git_commit_number():
 
 script_version = get_git_commit_number()
 
+
 if script_version not in __version__:
     __version__ = __version__ + '+py%s' % script_version
-
