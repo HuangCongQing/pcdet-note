@@ -13,3 +13,5 @@ venv/
 *.pkl
 *.zip
 *.bin
+# 输出
+output/

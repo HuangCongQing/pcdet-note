@@ -10,6 +10,9 @@ import numpy as np
 import torch
 from tensorboardX import SummaryWriter
 
+
+import sys
+sys.path.append('..')
 from eval_utils import eval_utils
 from pcdet.config import cfg, cfg_from_list, cfg_from_yaml_file, log_config_to_file
 from pcdet.datasets import build_dataloader
