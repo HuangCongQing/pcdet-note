@@ -15,7 +15,7 @@ class DataProcessor(object):
         for cur_cfg in processor_configs:
             cur_processor = getattr(self, cur_cfg.NAME)(config=cur_cfg)
             self.data_processor_queue.append(cur_processor)
-
+    # 遮盖所有在点云范围之外的点和gt_box
     def mask_points_and_boxes_outside_range(self, data_dict=None, config=None):
         if data_dict is None:
             return partial(self.mask_points_and_boxes_outside_range, config=config)
@@ -27,7 +27,7 @@ class DataProcessor(object):
             )
             data_dict['gt_boxes'] = data_dict['gt_boxes'][mask]
         return data_dict
-
+    # 将点云数据点随机排序（洗牌）
     def shuffle_points(self, data_dict=None, config=None):
         if data_dict is None:
             return partial(self.shuffle_points, config=config)
@@ -39,7 +39,7 @@ class DataProcessor(object):
             data_dict['points'] = points
 
         return data_dict
-
+    # 根据spconv中的函数从点云中生成体素
     def transform_points_to_voxels(self, data_dict=None, config=None, voxel_generator=None):
         if data_dict is None:
             try:

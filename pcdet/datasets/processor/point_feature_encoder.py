@@ -1,3 +1,12 @@
+'''
+Description: 点云数据按照['x', 'y', 'z', 'intensity']的格式解码读取
+Author: HCQ
+Company(School): UCAS
+Email: 1756260160@qq.com
+Date: 2021-05-02 23:48:58
+LastEditTime: 2021-06-14 16:11:26
+FilePath: /PCDet/pcdet/datasets/processor/point_feature_encoder.py
+'''
 import numpy as np
 
 
