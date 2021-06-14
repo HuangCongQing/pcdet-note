@@ -3,11 +3,11 @@ import os
 import torch
 import torch.nn as nn
 
-from ...ops.iou3d_nms import iou3d_nms_utils
-from .. import backbones_2d, backbones_3d, dense_heads, roi_heads
+from ...ops.iou3d_nms import iou3d_nms_utils # nms
+from .. import backbones_2d, backbones_3d, dense_heads, roi_heads # import
 from ..backbones_2d import map_to_bev
 from ..backbones_3d import pfe, vfe
-from ..model_utils import model_nms_utils
+from ..model_utils import model_nms_utils # nms??
 
 
 class Detector3DTemplate(nn.Module):
