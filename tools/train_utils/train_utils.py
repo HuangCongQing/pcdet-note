@@ -8,6 +8,7 @@ from torch.nn.utils import clip_grad_norm_
 
 def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, accumulated_iter, optim_cfg,
                     rank, tbar, total_it_each_epoch, dataloader_iter, tb_log=None, leave_pbar=False):
+    # 找到表示训练和梯度优化等的关键函数
     if total_it_each_epoch == len(train_loader):
         dataloader_iter = iter(train_loader)
 
@@ -32,14 +33,14 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
         if tb_log is not None:
             tb_log.add_scalar('meta_data/learning_rate', cur_lr, accumulated_iter)
 
-        model.train()
-        optimizer.zero_grad()
+        model.train() #一个固定语句
+        optimizer.zero_grad()  # 梯度清零
 
-        loss, tb_dict, disp_dict = model_func(model, batch)
+        loss, tb_dict, disp_dict = model_func(model, batch) # 求loss
 
-        loss.backward()
-        clip_grad_norm_(model.parameters(), optim_cfg.GRAD_NORM_CLIP)
-        optimizer.step()
+        loss.backward() # 反向传播
+        clip_grad_norm_(model.parameters(), optim_cfg.GRAD_NORM_CLIP) # 梯度裁剪
+        optimizer.step() # 更新
 
         accumulated_iter += 1
         disp_dict.update({'loss': loss.item(), 'lr': cur_lr})
@@ -60,7 +61,7 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
         pbar.close()
     return accumulated_iter
 
-
+# 模型训练
 def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_cfg,
                 start_epoch, total_epochs, start_iter, rank, tb_log, ckpt_save_dir, train_sampler=None,
                 lr_warmup_scheduler=None, ckpt_save_interval=1, max_ckpt_save_num=50,
@@ -74,7 +75,7 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
             total_it_each_epoch = len(train_loader) // max(total_epochs, 1)
 
         dataloader_iter = iter(train_loader)
-        for cur_epoch in tbar:
+        for cur_epoch in tbar:  # for key in epochs:
             if train_sampler is not None:
                 train_sampler.set_epoch(cur_epoch)
 
@@ -83,7 +84,7 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
                 cur_scheduler = lr_warmup_scheduler
             else:
                 cur_scheduler = lr_scheduler
-            accumulated_iter = train_one_epoch(
+            accumulated_iter = train_one_epoch( # #训练一个epoch
                 model, optimizer, train_loader, model_func,
                 lr_scheduler=cur_scheduler,
                 accumulated_iter=accumulated_iter, optim_cfg=optim_cfg,
@@ -97,7 +98,7 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
             trained_epoch = cur_epoch + 1
             if trained_epoch % ckpt_save_interval == 0 and rank == 0:
 
-                ckpt_list = glob.glob(str(ckpt_save_dir / 'checkpoint_epoch_*.pth'))
+                ckpt_list = glob.glob(str(ckpt_save_dir / 'checkpoint_epoch_*.pth')) # 保存
                 ckpt_list.sort(key=os.path.getmtime)
 
                 if ckpt_list.__len__() >= max_ckpt_save_num:
