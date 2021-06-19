@@ -1,3 +1,12 @@
+'''
+Description:  pointpillar
+Author: HCQ
+Company(School): UCAS
+Email: 1756260160@qq.com
+Date: 2021-05-02 23:48:58
+LastEditTime: 2021-06-16 21:45:26
+FilePath: /PCDet/pcdet/models/detectors/pointpillar.py
+'''
 from .detector3d_template import Detector3DTemplate
 
 
@@ -7,7 +16,8 @@ class PointPillar(Detector3DTemplate):
         self.module_list = self.build_networks()
 
     def forward(self, batch_dict):
-        for cur_module in self.module_list:
+        for cur_module in self.module_list: # 遍历所需模块
+            print('遍历所需模块:','\n',str(cur_module))
             batch_dict = cur_module(batch_dict)
 
         if self.training:
