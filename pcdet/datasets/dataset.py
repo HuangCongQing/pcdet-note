@@ -158,22 +158,29 @@ class DatasetTemplate(torch_data.Dataset):
 
         for key, val in data_dict.items():
             try:
-                if key in ['voxels', 'voxel_num_points']:
-                    ret[key] = np.concatenate(val, axis=0)
-                elif key in ['points', 'voxel_coords']:
+                if key in ['voxels', 'voxel_num_points']: # 对应体素
+                    ret[key] = np.concatenate(val, axis=0) # 多个数组的拼接
+                elif key in ['points', 'voxel_coords']: # #对应关键点
                     coors = []
                     for i, coor in enumerate(val):
                         coor_pad = np.pad(coor, ((0, 0), (1, 0)), mode='constant', constant_values=i)
-                        coors.append(coor_pad)
+                        """
+                            ((0,0),(1,0))
+                            在二维数组array第一维（此处便是行）前面填充0行，最后面填充0行；
+                            在二维数组array第二维（此处便是列）前面填充1列，最后面填充0列
+                            mode='constant'表示指定填充的参数
+                            constant_values=i 表示第一维填充i
+                        """
+                        coors.append(coor_pad) #将coor_pad补充在coors后面
                     ret[key] = np.concatenate(coors, axis=0)
-                elif key in ['gt_boxes']:
-                    max_gt = max([len(x) for x in val])
-                    batch_gt_boxes3d = np.zeros((batch_size, max_gt, val[0].shape[-1]), dtype=np.float32)
+                elif key in ['gt_boxes']: # 对应真值
+                    max_gt = max([len(x) for x in val]) # 找寻最大价值的点
+                    batch_gt_boxes3d = np.zeros((batch_size, max_gt, val[0].shape[-1]), dtype=np.float32) # #画可视图用的
                     for k in range(batch_size):
                         batch_gt_boxes3d[k, :val[k].__len__(), :] = val[k]
                     ret[key] = batch_gt_boxes3d
                 else:
-                    ret[key] = np.stack(val, axis=0)
+                    ret[key] = np.stack(val, axis=0) # #类似concatenate,给指定axis增加维度
             except:
                 print('Error in collate_batch: key=%s' % key)
                 raise TypeError

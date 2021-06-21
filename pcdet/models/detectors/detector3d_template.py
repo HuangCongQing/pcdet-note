@@ -19,7 +19,7 @@ class Detector3DTemplate(nn.Module):
         self.class_names = dataset.class_names
         self.register_buffer('global_step', torch.LongTensor(1).zero_())
 
-        self.module_topology = [
+        self.module_topology = [ # 储存了网络中的每一个模块,vfe表示voxel_feature，pfe表示point_feature
             'vfe', 'backbone_3d', 'map_to_bev_module', 'pfe',
             'backbone_2d', 'dense_head',  'point_head', 'roi_head'
         ]
@@ -32,19 +32,19 @@ class Detector3DTemplate(nn.Module):
         self.global_step += 1
 
     def build_networks(self):
-        model_info_dict = {
-            'module_list': [],
-            'num_rawpoint_features': self.dataset.point_feature_encoder.num_point_features,
+        model_info_dict = {#参数
+            'module_list': [],  #使用的模型
+            'num_rawpoint_features': self.dataset.point_feature_encoder.num_point_features, #点云特征
             'num_point_features': self.dataset.point_feature_encoder.num_point_features,
-            'grid_size': self.dataset.grid_size,
-            'point_cloud_range': self.dataset.point_cloud_range,
-            'voxel_size': self.dataset.voxel_size
+            'grid_size': self.dataset.grid_size, #网格大小
+            'point_cloud_range': self.dataset.point_cloud_range, #点云范围
+            'voxel_size': self.dataset.voxel_size #体素大小
         }
-        for module_name in self.module_topology:
+        for module_name in self.module_topology: #   module_topology储存了网络中的每一个module
             module, model_info_dict = getattr(self, 'build_%s' % module_name)(
                 model_info_dict=model_info_dict
-            )
-            self.add_module(module_name, module)
+            ) # getattr() 函数用于返回一个对象属性值，将build_module_name返回给了module
+            self.add_module(module_name, module) #添加一个模块
         return model_info_dict['module_list']
 
     def build_vfe(self, model_info_dict):
@@ -316,12 +316,12 @@ class Detector3DTemplate(nn.Module):
         else:
             gt_iou = box_preds.new_zeros(box_preds.shape[0])
         return recall_dict
-
+    # 加载权重文件
     def load_params_from_file(self, filename, logger, to_cpu=False):
         if not os.path.isfile(filename):
             raise FileNotFoundError
 
-        logger.info('==> Loading parameters from checkpoint %s to %s' % (filename, 'CPU' if to_cpu else 'GPU'))
+        logger.info('==> 【detector3d_template.py】Loading parameters from checkpoint %s to %s' % (filename, 'CPU' if to_cpu else 'GPU'))
         loc_type = torch.device('cpu') if to_cpu else None
         checkpoint = torch.load(filename, map_location=loc_type)
         model_state_disk = checkpoint['model_state']
@@ -342,14 +342,14 @@ class Detector3DTemplate(nn.Module):
         for key in state_dict:
             if key not in update_model_state:
                 logger.info('Not updated weight %s: %s' % (key, str(state_dict[key].shape)))
-
-        logger.info('==> Done (loaded %d/%d)' % (len(update_model_state), len(self.state_dict())))
+        # ==> Done (loaded 367/367)
+        logger.info('==>【detector3d_template.py】 Done (loaded %d/%d)' % (len(update_model_state), len(self.state_dict())))
 
     def load_params_with_optimizer(self, filename, to_cpu=False, optimizer=None, logger=None):
         if not os.path.isfile(filename):
             raise FileNotFoundError
-
-        logger.info('==> Loading parameters from checkpoint %s to %s' % (filename, 'CPU' if to_cpu else 'GPU'))
+        
+        logger.info('==> 【detector3d_template.py】Loading parameters from checkpoint %s to %s' % (filename, 'CPU' if to_cpu else 'GPU'))
         loc_type = torch.device('cpu') if to_cpu else None
         checkpoint = torch.load(filename, map_location=loc_type)
         epoch = checkpoint.get('epoch', -1)

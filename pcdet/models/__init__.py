@@ -1,3 +1,12 @@
+'''
+Description: https://blog.csdn.net/weixin_44579633/article/details/107542954#commentBox
+Author: HCQ
+Company(School): UCAS
+Email: 1756260160@qq.com
+Date: 2021-05-02 23:48:58
+LastEditTime: 2021-06-19 21:38:52
+FilePath: /PCDet/pcdet/models/__init__.py
+'''
 from collections import namedtuple
 
 import numpy as np
@@ -5,7 +14,7 @@ import torch
 
 from .detectors import build_detector
 
-
+# 这里的build_networks是继承的Detector3DTemplate中的函数
 def build_network(model_cfg, num_class, dataset):
     model = build_detector(
         model_cfg=model_cfg, num_class=num_class, dataset=dataset
