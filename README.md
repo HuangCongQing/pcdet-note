@@ -6,10 +6,13 @@
 
 It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/1812.04244), [`[Part-A^2 net]`](https://arxiv.org/abs/1907.03670) and [`[PV-RCNN]`](https://arxiv.org/abs/1912.13192).
 
+Docs:[https://www.yuque.com/huangzhongqing/hre6tf/vy6gd2](https://www.yuque.com/huangzhongqing/hre6tf/vy6gd2)
 
-Docs:https://www.yuque.com/huangzhongqing/hre6tf/vy6gd2
+Branch
 
-
+* master：no change
+* hcq：learning
+* test: trpd
 
 ## Overview
 
