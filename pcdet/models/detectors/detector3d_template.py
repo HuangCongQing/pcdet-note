@@ -20,9 +20,9 @@ class Detector3DTemplate(nn.Module):
         self.register_buffer('global_step', torch.LongTensor(1).zero_())
 
         self.module_topology = [ # 储存了网络中的每一个模块,vfe表示voxel_feature，pfe表示point_feature
-            'vfe', 'backbone_3d', 'map_to_bev_module', 'pfe',
-            'backbone_2d', 'dense_head',  'point_head', 'roi_head'
-        ]
+            'vfe', 'backbone_3d', 'map_to_bev_module', 'pfe', # 
+            'backbone_2d', 'dense_head',  'point_head', 'roi_head' # dense_head处理backbone_2d， point_head处理pfe数据，roi_head处理dense_head（RPN head）和point_head
+        ]# 
 
     @property
     def mode(self):
@@ -115,7 +115,7 @@ class Detector3DTemplate(nn.Module):
         model_info_dict['num_point_features'] = pfe_module.num_point_features
         model_info_dict['num_point_features_before_fusion'] = pfe_module.num_point_features_before_fusion
         return pfe_module, model_info_dict
-
+    # 
     def build_dense_head(self, model_info_dict):
         if self.model_cfg.get('DENSE_HEAD', None) is None:
             return None, model_info_dict
@@ -130,7 +130,7 @@ class Detector3DTemplate(nn.Module):
         )
         model_info_dict['module_list'].append(dense_head_module)
         return dense_head_module, model_info_dict
-
+    # point_head
     def build_point_head(self, model_info_dict):
         if self.model_cfg.get('POINT_HEAD', None) is None:
             return None, model_info_dict
@@ -149,7 +149,7 @@ class Detector3DTemplate(nn.Module):
 
         model_info_dict['module_list'].append(point_head_module)
         return point_head_module, model_info_dict
-
+    # 
     def build_roi_head(self, model_info_dict):
         if self.model_cfg.get('ROI_HEAD', None) is None:
             return None, model_info_dict

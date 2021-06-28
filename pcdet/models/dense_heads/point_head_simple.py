@@ -85,7 +85,7 @@ class PointHeadSimple(PointHeadTemplate):
 
         if self.training:
             targets_dict = self.assign_targets(batch_dict)
-            ret_dict['point_cls_labels'] = targets_dict['point_cls_labels']
+            ret_dict['point_cls_labels'] = targets_dict['point_cls_labels'] # label
         self.forward_ret_dict = ret_dict
 
         return batch_dict
