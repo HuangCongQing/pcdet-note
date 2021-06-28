@@ -1,0 +1,85 @@
+DATASET: 'KittiDataset'
+DATA_PATH: '../data/kitti' # #数据路径
+
+#点云范围，根据实际自己的点云范围调整
+POINT_CLOUD_RANGE: [0, -40, -3, 70.4, 40, 1] #  顺序为[x_min, y_min, z_min, x_max, y_max, z_max]
+
+DATA_SPLIT: {
+    'train': train,
+    'test': val
+}
+
+#信息路径
+INFO_PATH: {
+    'train': [kitti_infos_train.pkl],
+    'test': [kitti_infos_val.pkl],
+}
+
+FOV_POINTS_ONLY: True
+
+#数据增强器
+DATA_AUGMENTOR:
+    DISABLE_AUG_LIST: ['placeholder']
+    AUG_CONFIG_LIST:
+        # gt_sampling及以下的各个NAME函数均定位在pcdet/datasets/augmentor/data_augmentor.py
+        - NAME: gt_sampling #ground truth 采样
+          USE_ROAD_PLANE: True
+          DB_INFO_PATH: # # 数据库信息路径
+              - kitti_dbinfos_train.pkl
+
+          #根据难度和关键点数量过滤掉一部分数据
+          #具体函数在头文件中的augmentor_utils.py  pcdet/datasets/augmentor/augmentor_utils.py
+          PREPARE: {
+             filter_by_min_points: ['Car:5', 'Pedestrian:5', 'Cyclist:5'], #按最低分数过滤
+             filter_by_difficulty: [-1], # 按难度过滤
+          }
+
+          SAMPLE_GROUPS: ['Car:20','Pedestrian:15', 'Cyclist:15']
+          NUM_POINT_FEATURES: 4
+          DATABASE_WITH_FAKELIDAR: False
+          REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
+          LIMIT_WHOLE_SCENE: True
+          
+        #通过随机翻转、旋转、放缩改变一部分dataset中gt_boxes和points的值，以增强数据
+        #详细代码在头文件中的pcdet/datasets/augmentor/data_augmentor.py
+        - NAME: random_world_flip # #随机世界翻转
+          ALONG_AXIS_LIST: ['x']
+
+        - NAME: random_world_rotation #  #随机世界旋转
+          WORLD_ROT_ANGLE: [-0.78539816, 0.78539816]
+
+        - NAME: random_world_scaling  #随机世界缩放
+          WORLD_SCALE_RANGE: [0.95, 1.05]
+
+# POINT_FEATURE_ENCODING定位在pcdet/dataset/processor/point_feature_encoder.py
+# 点特征编码
+# 作用是将点云数据按照['x', 'y', 'z', 'intensity']的格式解码读取
+POINT_FEATURE_ENCODING: {
+    encoding_type: absolute_coordinates_encoding,
+    used_feature_list: ['x', 'y', 'z', 'intensity'],
+    src_feature_list: ['x', 'y', 'z', 'intensity'],
+}
+
+# DATA_PROCESSOR及相关函数定位在pcdet/datasets/processor/data_processor.py中
+# 数据处理器
+DATA_PROCESSOR:
+   # 作用是遮盖所有在点云范围之外的点和gt_box
+   # 具体函数在头文件中的common_utils.py和box_utils.py
+    - NAME: mask_points_and_boxes_outside_range
+      REMOVE_OUTSIDE_BOXES: True #  #移除外框
+
+    # 作用是将点云数据点随机排序（洗牌）
+    - NAME: shuffle_points
+      SHUFFLE_ENABLED: {
+        'train': True,
+        'test': False
+      }
+
+    # 根据spconv中的函数从点云中生成体素
+    - NAME: transform_points_to_voxels # 将点转换为体素
+      VOXEL_SIZE: [0.05, 0.05, 0.1] #  #体素大小，根据点云的稠密程度调整
+      MAX_POINTS_PER_VOXEL: 5 # 每个体素的最高点数，根据点云的稠密程度调整
+      MAX_NUMBER_OF_VOXELS: { # #体素数量上限
+        'train': 16000,
+        'test': 40000
+      }

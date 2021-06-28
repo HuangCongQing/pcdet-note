@@ -1,0 +1,173 @@
+# 类名
+CLASS_NAMES: ['Car', 'Pedestrian', 'Cyclist']
+
+# 数据配置
+DATA_CONFIG: 
+    _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml # kitti_dataset 数据集配置
+    POINT_CLOUD_RANGE: [0, -39.68, -3, 69.12, 39.68, 1] #点云范围 [x_min, y_min, z_min, x_max, y_max, z_max]
+    DATA_PROCESSOR: #  数据处理器
+        - NAME: mask_points_and_boxes_outside_range
+          REMOVE_OUTSIDE_BOXES: True #移出boxes
+
+        - NAME: shuffle_points
+          SHUFFLE_ENABLED: { # 打乱数据集
+            'train': True, # 训练集打乱
+            'test': False # 测试集不打乱
+          }
+
+        - NAME: transform_points_to_voxels
+          VOXEL_SIZE: [0.16, 0.16, 4] # #体素大小（x,y,z）
+          MAX_POINTS_PER_VOXEL: 32 #每个体素的最大点数
+          MAX_NUMBER_OF_VOXELS: { #最大体素数
+            'train': 16000,
+            'test': 40000
+          }
+    # 数据增强器
+    DATA_AUGMENTOR:
+        DISABLE_AUG_LIST: ['placeholder'] # 停用数据增强器
+        # AUG配置列表
+        AUG_CONFIG_LIST:
+            - NAME: gt_sampling
+              USE_ROAD_PLANE: True # # 使用road plane数据增强 停用：USE_ROAD_PLANE: False
+              DB_INFO_PATH:
+                  - kitti_dbinfos_train.pkl
+              # 数据库信息路径
+              PREPARE: {
+                 filter_by_min_points: ['Car:5', 'Pedestrian:5', 'Cyclist:5'], # 按最低分过滤
+                 filter_by_difficulty: [-1], # 按难度过滤
+              }
+
+              SAMPLE_GROUPS: ['Car:15','Pedestrian:15', 'Cyclist:15'] # 样本组
+              NUM_POINT_FEATURES: 4 #点特征数
+              DATABASE_WITH_FAKELIDAR: False
+              REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0] # 删除多余的宽度
+              LIMIT_WHOLE_SCENE: False # #整个场景限制
+            # 翻转 旋转 缩放
+            - NAME: random_world_flip #随机世界翻转
+              ALONG_AXIS_LIST: ['x'] # #沿轴
+
+            - NAME: random_world_rotation #随机世界旋转
+              WORLD_ROT_ANGLE: [-0.78539816, 0.78539816] #世界旋转角度
+
+            - NAME: random_world_scaling #随机世界缩放
+              WORLD_SCALE_RANGE: [0.95, 1.05] # 世界范围
+# 模型===============================================
+MODEL:
+    NAME: PointPillar
+
+    VFE:
+        NAME: PillarVFE #  pcdet/models/backbones_3d/vfe/pillar_vfe.py
+        WITH_DISTANCE: False
+        USE_ABSLOTE_XYZ: True
+        USE_NORM: True
+        NUM_FILTERS: [64]   #滤波器个数
+
+    MAP_TO_BEV:
+        NAME: PointPillarScatter # pcdet/models/backbones_2d/map_to_bev/pointpillar_scatter.py
+        NUM_BEV_FEATURES: 64 #BEV特征数
+
+    BACKBONE_2D:
+        NAME: BaseBEVBackbone # pcdet/models/backbones_2d/base_bev_backbone.py
+        LAYER_NUMS: [3, 5, 5]  #层数
+        LAYER_STRIDES: [2, 2, 2] #层步幅
+        NUM_FILTERS: [64, 128, 256] #滤波器个数
+        UPSAMPLE_STRIDES: [1, 2, 4] #上采样步幅
+        NUM_UPSAMPLE_FILTERS: [128, 128, 128] #上采样滤波器个数
+
+    # 密集卷积头======================
+    DENSE_HEAD:
+        NAME: AnchorHeadSingle # pcdet/models/dense_heads/anchor_head_single.py
+        CLASS_AGNOSTIC: False
+
+        USE_DIRECTION_CLASSIFIER: True #使用方向分类器
+        DIR_OFFSET: 0.78539   #方向偏移量   = π / 4  90°=(弧度π/2=1.57）
+        DIR_LIMIT_OFFSET: 0.0  #方向限制偏移量
+        NUM_DIR_BINS: 2 #BINS的方向数
+
+        #anchor配置
+        ANCHOR_GENERATOR_CONFIG: [
+            {
+                'class_name': 'Car',
+                'anchor_sizes': [[3.9, 1.6, 1.56]],  #尺寸
+                'anchor_rotations': [0, 1.57], #旋转角度：0°和90°=(弧度π/2=1.57）
+                'anchor_bottom_heights': [-1.78], #底高度
+                'align_center': False, #居中对齐
+                'feature_map_stride': 2, #特征图步幅
+                'matched_threshold': 0.6, #匹配阈值
+                'unmatched_threshold': 0.45 #不匹配阈值
+            },
+            {
+                'class_name': 'Pedestrian',
+                'anchor_sizes': [[0.8, 0.6, 1.73]],
+                'anchor_rotations': [0, 1.57],
+                'anchor_bottom_heights': [-0.6],
+                'align_center': False,
+                'feature_map_stride': 2,
+                'matched_threshold': 0.5,
+                'unmatched_threshold': 0.35
+            },
+            {
+                'class_name': 'Cyclist',
+                'anchor_sizes': [[1.76, 0.6, 1.73]],
+                'anchor_rotations': [0, 1.57],
+                'anchor_bottom_heights': [-0.6],
+                'align_center': False,
+                'feature_map_stride': 2,
+                'matched_threshold': 0.5,
+                'unmatched_threshold': 0.35
+            }
+        ]
+        # 目标分配器配置
+        TARGET_ASSIGNER_CONFIG:
+            #轴对准目标分配器
+            NAME: AxisAlignedTargetAssigner #  # pcdet/models/dense_heads/target_assigner/axis_aligned_target_assigner.py
+            POS_FRACTION: -1.0 #POS分数
+            SAMPLE_SIZE: 512 #样本大小
+            NORM_BY_NUM_EXAMPLES: False
+            MATCH_HEIGHT: False #匹配高
+            BOX_CODER: ResidualCoder #BOX编码器
+        # 损失配置
+        LOSS_CONFIG:
+            LOSS_WEIGHTS: {
+                'cls_weight': 1.0, # 分类权重
+                'loc_weight': 2.0, # 位置权重
+                'dir_weight': 0.2, # 方向权重
+                'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0] #代码权重
+            }
+    # 后期处理
+    POST_PROCESSING:
+        RECALL_THRESH_LIST: [0.3, 0.5, 0.7] #recall阈值列表
+        SCORE_THRESH: 0.1 #分数阈值
+        OUTPUT_RAW_SCORE: False #输出原始分数
+
+        EVAL_METRIC: kitti #评估指标
+
+        # NMS配置
+        NMS_CONFIG:
+            MULTI_CLASSES_NMS: False # 多类NMS
+            NMS_TYPE: nms_gpu #NMS类型
+            NMS_THRESH: 0.01 #NMS阈值
+            NMS_PRE_MAXSIZE: 4096 #NMS上限
+            NMS_POST_MAXSIZE: 500 # NMS POST上限
+
+# 优化
+OPTIMIZATION:
+    BATCH_SIZE_PER_GPU: 4 #每个GPU的批量大小
+    NUM_EPOCHS: 80 #epoch数
+
+    OPTIMIZER: adam_onecycle #优化器
+    LR: 0.003 #学习率
+    WEIGHT_DECAY: 0.01 #衰减量
+    MOMENTUM: 0.9 #动量
+
+    MOMS: [0.95, 0.85]
+    PCT_START: 0.4
+    DIV_FACTOR: 10
+    DECAY_STEP_LIST: [35, 45]
+    LR_DECAY: 0.1 #学习率衰减
+    LR_CLIP: 0.0000001
+
+    LR_WARMUP: False
+    WARMUP_EPOCH: 1
+
+    GRAD_NORM_CLIP: 10
