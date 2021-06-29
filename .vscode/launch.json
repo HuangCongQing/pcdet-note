@@ -12,7 +12,7 @@
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/tools",  // 调试路径
             "args": [ // 参数
-                "--cfg_file","/home/hcq/pointcloud/PCDet/tools/cfgs/kitti_models/pv_rcnn.yaml",
+                "--cfg_file","cfgs/kitti_models/pv_rcnn.yaml",  //pv_rcnn调试
                 "--batch_size", "1",
                 "--epochs", "100"
             ]
