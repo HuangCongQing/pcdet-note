@@ -120,7 +120,7 @@ class PillarVFE(VFETemplate):
             features = pfn(features)
         features = features.squeeze()
         batch_dict['pillar_features'] = features
-        print('batch_dict-------------------','\n',batch_dict)
+        # print('batch_dict-------------------','\n',batch_dict)
         return batch_dict
 ''' 
 一个 batch_dict：

@@ -146,7 +146,7 @@ MODEL:
         NMS_CONFIG:
             MULTI_CLASSES_NMS: False # 多类NMS
             NMS_TYPE: nms_gpu #NMS类型
-            NMS_THRESH: 0.01 #NMS阈值
+            NMS_THRESH: 0.01 #NMS阈值(低于阈值舍弃)
             NMS_PRE_MAXSIZE: 4096 #NMS上限
             NMS_POST_MAXSIZE: 500 # NMS POST上限
 

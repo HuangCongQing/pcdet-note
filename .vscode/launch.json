@@ -12,7 +12,8 @@
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/tools",  // 调试路径
             "args": [ // 参数
-                "--cfg_file","cfgs/kitti_models/pv_rcnn.yaml",  //pv_rcnn调试
+                "--cfg_file","cfgs/kitti_models/pointpillar.yaml",  //pointpillar调试
+                // "--cfg_file","cfgs/kitti_models/pv_rcnn.yaml",  //pv_rcnn调试
                 "--batch_size", "1",
                 "--epochs", "100"
             ]

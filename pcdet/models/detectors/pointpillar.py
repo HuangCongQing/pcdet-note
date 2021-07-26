@@ -17,7 +17,7 @@ class PointPillar(Detector3DTemplate):
 
     def forward(self, batch_dict):
         for cur_module in self.module_list: # 遍历所需模块
-            print('遍历所需模块:','\n',str(cur_module))
+            # print('遍历所需模块:','\n',str(cur_module))
             batch_dict = cur_module(batch_dict)
 
         if self.training:

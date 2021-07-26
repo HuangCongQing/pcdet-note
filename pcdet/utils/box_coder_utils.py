@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-
+# 参考:https://blog.csdn.net/W1995S/article/details/115136348
 
 class ResidualCoder(object):
     def __init__(self, code_size=7, encode_angle_by_sincos=False, **kwargs):
