@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-
+# 参考：https://blog.csdn.net/W1995S/article/details/115413428
 from ....ops.iou3d_nms import iou3d_nms_utils
 from ....utils import box_utils
 
@@ -136,11 +136,15 @@ class AxisAlignedTargetAssigner(object):
 
         labels = torch.ones((num_anchors,), dtype=torch.int32, device=anchors.device) * -1
         gt_ids = torch.ones((num_anchors,), dtype=torch.int32, device=anchors.device) * -1
-
+        # IOU 计算  https://blog.csdn.net/W1995S/article/details/115413428
         if len(gt_boxes) > 0 and anchors.shape[0] > 0:
             anchor_by_gt_overlap = iou3d_nms_utils.boxes_iou3d_gpu(anchors[:, 0:7], gt_boxes[:, 0:7]) \
                 if self.match_height else box_utils.boxes3d_nearest_bev_iou(anchors[:, 0:7], gt_boxes[:, 0:7])
 
+            # (cx, cy, cz) 为物体3D框的几何中心位置，(dx, dy, dz)分别为物体3D框在heading角度为0时沿着x-y-z三个方向的长度，heading为物体在俯视图下的朝向角
+            # anchors[:, 0:7]  #(cx, cy, cz, dx, dy, dz, heading)    torch.Size([107136, 7])  # 固定107136个anchor，2种角度：0°、90°
+            # gt_boxes[:, 0:7]   torch.Size([12, 7]) # 这个batch=3有12个anchor，不是固定的
+            # 产生的anchor，解释107136，backbone之后的feature map是[batch_size，6C, H/2=248, W/2=216]，每个位置产生2种角度（0°、90°）的anchor，248 x 216 x 2 = 107136。
             anchor_to_gt_argmax = torch.from_numpy(anchor_by_gt_overlap.cpu().numpy().argmax(axis=1)).cuda()
             anchor_to_gt_max = anchor_by_gt_overlap[
                 torch.arange(num_anchors, device=anchors.device), anchor_to_gt_argmax

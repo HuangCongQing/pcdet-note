@@ -57,7 +57,7 @@ class SigmoidFocalClassificationLoss(nn.Module):
         pred_sigmoid = torch.sigmoid(input)
         alpha_weight = target * self.alpha + (1 - target) * (1 - self.alpha)
         pt = target * (1.0 - pred_sigmoid) + (1.0 - target) * pred_sigmoid
-        focal_weight = alpha_weight * torch.pow(pt, self.gamma) @ 
+        focal_weight = alpha_weight * torch.pow(pt, self.gamma) 
 
         bce_loss = self.sigmoid_cross_entropy_with_logits(input, target) # 代码自定义了tf.nn.sigmoid_cross_entropy_with_logits()交叉熵损失，这里以sigmoid函数做为logistic函数，所有输入sigmoid之前的函数都可以叫logit，这里是多输入，所以叫logits
 

@@ -245,11 +245,11 @@ def boxes3d_kitti_camera_to_imageboxes(boxes3d, calib, image_shape=None):
 
     return boxes2d_image
 
-
+# 然后就是计算IOU了，用的是标准2D IOU计算方法。返回[107136， num_gt_box]   https://blog.csdn.net/W1995S/article/details/115413428
 def boxes_iou_normal(boxes_a, boxes_b):
     """
     Args:
-        boxes_a: (N, 4) [x1, y1, x2, y2]
+        boxes_a: (N, 4) [x1, y1, x2, y2]                  参数：     [x_min, y_min, x_max, y_max]
         boxes_b: (M, 4) [x1, y1, x2, y2]
 
     Returns:
@@ -264,7 +264,7 @@ def boxes_iou_normal(boxes_a, boxes_b):
     y_len = torch.clamp_min(y_max - y_min, min=0)
     area_a = (boxes_a[:, 2] - boxes_a[:, 0]) * (boxes_a[:, 3] - boxes_a[:, 1])
     area_b = (boxes_b[:, 2] - boxes_b[:, 0]) * (boxes_b[:, 3] - boxes_b[:, 1])
-    a_intersect_b = x_len * y_len
+    a_intersect_b = x_len * y_len # 交集
     iou = a_intersect_b / torch.clamp_min(area_a[:, None] + area_b[None, :] - a_intersect_b, min=1e-6)
     return iou
 

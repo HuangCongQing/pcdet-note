@@ -88,7 +88,7 @@ MODEL:
         ANCHOR_GENERATOR_CONFIG: [
             {
                 'class_name': 'Car',
-                'anchor_sizes': [[3.9, 1.6, 1.56]],  #尺寸
+                'anchor_sizes': [[3.9, 1.6, 1.56]],  #Car尺寸
                 'anchor_rotations': [0, 1.57], #旋转角度：0°和90°=(弧度π/2=1.57）
                 'anchor_bottom_heights': [-1.78], #底高度
                 'align_center': False, #居中对齐
