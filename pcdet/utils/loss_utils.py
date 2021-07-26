@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from . import box_utils
 
 # 多标签分类损失函数使用的是focal loss  ref: https://blog.csdn.net/W1995S/article/details/114687437
+# https://blog.csdn.net/W1995S/article/details/115400741
 class SigmoidFocalClassificationLoss(nn.Module):
     """
     Sigmoid focal cross entropy loss.
@@ -14,8 +15,8 @@ class SigmoidFocalClassificationLoss(nn.Module):
     def __init__(self, gamma: float = 2.0, alpha: float = 0.25):
         """
         Args:
-            gamma: Weighting parameter to balance loss for hard and easy examples.
-            alpha: Weighting parameter to balance loss for positive and negative examples.
+            gamma: Weighting parameter to balance loss for hard and easy examples. 用于平衡简单、困难样本
+            alpha: Weighting parameter to balance loss for positive and negative examples. 用于平衡正、负样本
         """
         super(SigmoidFocalClassificationLoss, self).__init__()
         self.alpha = alpha
@@ -27,39 +28,40 @@ class SigmoidFocalClassificationLoss(nn.Module):
             max(x, 0) - x * z + log(1 + exp(-abs(x))) in
             https://www.tensorflow.org/api_docs/python/tf/nn/sigmoid_cross_entropy_with_logits
 
-        Args:
-            input: (B, #anchors, #classes) float tensor.
-                Predicted logits for each class
-            target: (B, #anchors, #classes) float tensor.
-                One-hot encoded classification targets
+        Args:输入
+            input: (B, #anchors, #classes) float tensor.   [3, 321408, 3]
+                Predicted logits for each class        为每一个类别预测的logits
+            target: (B, #anchors, #classes) float tensor.   [3, 321408, 3]
+                One-hot encoded classification targets   One-hot编码的类别标签
 
-        Returns:
+        Returns:输出
             loss: (B, #anchors, #classes) float tensor.
-                Sigmoid cross entropy loss without reduction
+                Sigmoid cross entropy loss without reduction   Sigmoid交叉熵损失
         """
         loss = torch.clamp(input, min=0) - input * target + \
-               torch.log1p(torch.exp(-torch.abs(input)))
+               torch.log1p(torch.exp(-torch.abs(input)))  # 交叉熵公式计算===========================
         return loss
 
     def forward(self, input: torch.Tensor, target: torch.Tensor, weights: torch.Tensor):
         """
         Args:
-            input: (B, #anchors, #classes) float tensor.
-                Predicted logits for each class
-            target: (B, #anchors, #classes) float tensor.
-                One-hot encoded classification targets
-            weights: (B, #anchors) float tensor.
-                Anchor-wise weights.
+            input: (B, #anchors, #classes) float tensor.  [3, 321408, 3]
+                Predicted logits for each class           为每一个类别预测的logits
+            target: (B, #anchors, #classes) float tensor. [3, 321408, 3]
+                One-hot encoded classification targets    One-hot编码的类别标签，只有0和1，1大约有150±30个左右
+            weights: (B, #anchors) float tensor.          [3, 321408]
+                Anchor-wise weights.                      每一个anchor的权重？
 
         Returns:
-            weighted_loss: (B, #anchors, #classes) float tensor after weighting.
+            weighted_loss: (B, #anchors, #classes) float tensor after weighting.  加权损失
         """
-        pred_sigmoid = torch.sigmoid(input)
-        alpha_weight = target * self.alpha + (1 - target) * (1 - self.alpha)
-        pt = target * (1.0 - pred_sigmoid) + (1.0 - target) * pred_sigmoid
-        focal_weight = alpha_weight * torch.pow(pt, self.gamma) 
+        pred_sigmoid = torch.sigmoid(input)    # [3, 321408, 3]
 
-        bce_loss = self.sigmoid_cross_entropy_with_logits(input, target) # 代码自定义了tf.nn.sigmoid_cross_entropy_with_logits()交叉熵损失，这里以sigmoid函数做为logistic函数，所有输入sigmoid之前的函数都可以叫logit，这里是多输入，所以叫logits
+        alpha_weight = target * self.alpha + (1 - target) * (1 - self.alpha)  # 正样本(里面的1)->0.25，负样本(0)->0.75 【1:3】
+        pt = target * (1.0 - pred_sigmoid) + (1.0 - target) * pred_sigmoid    # 前半部分是正样本，后半部分是负样本
+        focal_weight = alpha_weight * torch.pow(pt, self.gamma)   # α * (1-pt)^2
+
+        bce_loss = self.sigmoid_cross_entropy_with_logits(input, target)  # 交叉熵 # 代码自定义了tf.nn.sigmoid_cross_entropy_with_logits()交叉熵损失，这里以sigmoid函数做为logistic函数，所有输入sigmoid之前的函数都可以叫logit，这里是多输入，所以叫logits
 
         loss = focal_weight * bce_loss # 
 

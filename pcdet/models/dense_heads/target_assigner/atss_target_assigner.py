@@ -60,9 +60,9 @@ class ATSSTargetAssigner(object):
 
         if single_set_of_anchor:
             ret_dict = {
-                'box_cls_labels': cls_labels_list[0],
-                'box_reg_targets': reg_targets_list[0],
-                'reg_weights': reg_weights_list[0]
+                'box_cls_labels': cls_labels_list[0], # 
+                'box_reg_targets': reg_targets_list[0], # 
+                'reg_weights': reg_weights_list[0] # 回归权重
             }
         else:
             ret_dict = {

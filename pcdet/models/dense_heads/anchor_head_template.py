@@ -97,38 +97,51 @@ class AnchorHeadTemplate(nn.Module):
             self.anchors, gt_boxes
         )
         return targets_dict
-
+    # #------------------------------------ 计算 分类 loss ----------------------------—----
     def get_cls_layer_loss(self):
-        cls_preds = self.forward_ret_dict['cls_preds']
-        box_cls_labels = self.forward_ret_dict['box_cls_labels']
-        batch_size = int(cls_preds.shape[0])
-        cared = box_cls_labels >= 0  # [N, num_anchors]
-        positives = box_cls_labels > 0
-        negatives = box_cls_labels == 0
-        negative_cls_weights = negatives * 1.0
-        cls_weights = (negative_cls_weights + 1.0 * positives).float()
-        reg_weights = positives.float()
-        if self.num_class == 1:
-            # class agnostic
-            box_cls_labels[positives] = 1
+        cls_preds = self.forward_ret_dict['cls_preds']  # # 类别预测结果 [N, H, W, C1] = [3, 248, 216, 18]                                                       来源: pcdet/models/dense_heads/anchor_head_single.py
+        box_cls_labels = self.forward_ret_dict['box_cls_labels']  # box类别标签 [N, num_anchors]= [3, 321408]
+        """ 
+        torch.Size([3, 248, 216, 18]) # 类别预测结果
+        torch.Size([3, 321408]) # box类别标签
+        
+        数字分析：
+        C1通道：18 = 3 x 3 x 2，3帧点云，每一帧点云在backbon得到的feature map 上每一个位置生成2个anchor，每个anchor预测Car、Pedestrian、Cyclists 这 3个类别。
+        num_anchors ： 321408 = 107136 x 3，3帧点云，每一帧点云生成107136 = 248 x 216 x 2个anchor。
+        ————————————————
+        版权声明：本文为CSDN博主「THE@JOKER」的原创文章，遵循CC 4.0 BY-SA版权协议，转载请附上原文出处链接及本声明。
+        原文链接：https://blog.csdn.net/W1995S/article/details/115400741
 
-        pos_normalizer = positives.sum(1, keepdim=True).float()
-        reg_weights /= torch.clamp(pos_normalizer, min=1.0)
-        cls_weights /= torch.clamp(pos_normalizer, min=1.0)
-        cls_targets = box_cls_labels * cared.type_as(box_cls_labels)
-        cls_targets = cls_targets.unsqueeze(dim=-1)
+         """
+        batch_size = int(cls_preds.shape[0]) # 批数 3
+        cared = box_cls_labels >= 0  # [N, num_anchors]  ，我们只关心>=0标签的box
+        positives = box_cls_labels > 0 # 标签>0 正样本
+        negatives = box_cls_labels == 0 # 标签=0 负样本
+        negative_cls_weights = negatives * 1.0 # 负样本类别权重，0变1
+        cls_weights = (negative_cls_weights + 1.0 * positives).float()  # 正负样本全部变1、2，3
+        reg_weights = positives.float() # 只保留标签>0的值
+        if self.num_class == 1: # # 如果只预测一类，如Car，实际上==3
+            # class agnostic  方式只回归2类bounding box，即前景和背景，仅检测“前景”物体
+            box_cls_labels[positives] = 1  # 检测一类，故将正样本标签全部置1
 
-        cls_targets = cls_targets.squeeze(dim=-1)
-        one_hot_targets = torch.zeros(
+        pos_normalizer = positives.sum(1, keepdim=True).float()  # 行和，维度保留[3,1]，根据统计，每行都是100以上的值=1x?+2x?+3x?
+        reg_weights /= torch.clamp(pos_normalizer, min=1.0) # 最小1.0 ,很像归一化, 仅是正样本
+        cls_weights /= torch.clamp(pos_normalizer, min=1.0) # 正负样本归一化？
+
+        cls_targets = box_cls_labels * cared.type_as(box_cls_labels)  # 只保留标签>0的类别
+        cls_targets = cls_targets.unsqueeze(dim=-1) # 增加1个维度 [3, 321408, 1]
+        cls_targets = cls_targets.squeeze(dim=-1) # 又减少一个维度???!!!  [3, 321408]
+
+        one_hot_targets = torch.zeros( # [3, 321408, 4]
             *list(cls_targets.shape), self.num_class + 1, dtype=cls_preds.dtype, device=cls_targets.device
         )
-        one_hot_targets.scatter_(-1, cls_targets.unsqueeze(dim=-1).long(), 1.0)
-        cls_preds = cls_preds.view(batch_size, -1, self.num_class)
-        one_hot_targets = one_hot_targets[..., 1:]
+        one_hot_targets.scatter_(-1, cls_targets.unsqueeze(dim=-1).long(), 1.0)    # 转为one-hot类型
+        cls_preds = cls_preds.view(batch_size, -1, self.num_class)  # [3, 321408, 3]
+        one_hot_targets = one_hot_targets[..., 1:]  # [3, 321408, 3]  只有0和1，1大约有150±30个左右
         cls_loss_src = self.cls_loss_func(cls_preds, one_hot_targets, weights=cls_weights)  # [N, M]
         cls_loss = cls_loss_src.sum() / batch_size
 
-        cls_loss = cls_loss * self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['cls_weight']
+        cls_loss = cls_loss * self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['cls_weight']  # 损失权重，cls_weight：1.0
         tb_dict = {
             'rpn_loss_cls': cls_loss.item()
         }
@@ -158,9 +171,9 @@ class AnchorHeadTemplate(nn.Module):
             dir_targets.scatter_(-1, dir_cls_targets.unsqueeze(dim=-1).long(), 1.0)
             dir_cls_targets = dir_targets
         return dir_cls_targets
-
+    # -----------------------------得到回归损失---------------------------------------------
     def get_box_reg_layer_loss(self):
-        box_preds = self.forward_ret_dict['box_preds']
+        box_preds = self.forward_ret_dict['box_preds']  # 来源:     self.forward_ret_dict['cls_preds'] = cls_preds  pcdet/models/dense_heads/anchor_head_single.py
         box_dir_cls_preds = self.forward_ret_dict.get('dir_cls_preds', None)
         box_reg_targets = self.forward_ret_dict['box_reg_targets']
         box_cls_labels = self.forward_ret_dict['box_cls_labels']
@@ -212,14 +225,15 @@ class AnchorHeadTemplate(nn.Module):
             tb_dict['rpn_loss_dir'] = dir_loss.item()
 
         return box_loss, tb_dict
-
+    # -------------------------------------- 获得损失 --------------------------------------
     def get_loss(self):
-        cls_loss, tb_dict = self.get_cls_layer_loss()
-        box_loss, tb_dict_box = self.get_box_reg_layer_loss()
+        cls_loss, tb_dict = self.get_cls_layer_loss()   # 计算classification loss    函数来源于下面   def get_cls_layer_loss(self):
+        box_loss, tb_dict_box = self.get_box_reg_layer_loss() # 计算box regression loss
         tb_dict.update(tb_dict_box)
-        rpn_loss = cls_loss + box_loss
+        rpn_loss = cls_loss + box_loss #  区域提案RPN region proposal loss 是以上两个loss的和=============================
+        print("rpn_loss:", rpn_loss)
 
-        tb_dict['rpn_loss'] = rpn_loss.item()
+        tb_dict['rpn_loss'] = rpn_loss.item()# rpn损失
         return rpn_loss, tb_dict
 
     def generate_predicted_boxes(self, batch_size, cls_preds, box_preds, dir_cls_preds=None):

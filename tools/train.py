@@ -115,12 +115,12 @@ def main():
         merge_all_iters_to_one_epoch=args.merge_all_iters_to_one_epoch,
         total_epochs=args.epochs
     )
-
+    # 模型build_network
     model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=train_set)
     if args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
     model.cuda()
-
+    # 优化器
     optimizer = build_optimizer(model, cfg.OPTIMIZATION)
 
     # load checkpoint if it is possible

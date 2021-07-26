@@ -1,6 +1,6 @@
 import numpy as np
 import torch.nn as nn
-
+#  分类
 from .anchor_head_template import AnchorHeadTemplate
 
 
@@ -13,7 +13,7 @@ class AnchorHeadSingle(AnchorHeadTemplate):
         )
 
         self.num_anchors_per_location = sum(self.num_anchors_per_location)
-
+        # 2D 
         self.conv_cls = nn.Conv2d(
             input_channels, self.num_anchors_per_location * self.num_class,
             kernel_size=1
@@ -39,21 +39,22 @@ class AnchorHeadSingle(AnchorHeadTemplate):
         nn.init.normal_(self.conv_box.weight, mean=0, std=0.001)
 
     def forward(self, data_dict):
+        #  # 2D卷积backbone后 (batch_size，6C，H/2，W/2)
         spatial_features_2d = data_dict['spatial_features_2d']
 
-        cls_preds = self.conv_cls(spatial_features_2d)
-        box_preds = self.conv_box(spatial_features_2d)
+        cls_preds = self.conv_cls(spatial_features_2d)  # 2D卷积，进行类别预测
+        box_preds = self.conv_box(spatial_features_2d) # 2D卷积，进行位置预测
 
         cls_preds = cls_preds.permute(0, 2, 3, 1).contiguous()  # [N, H, W, C]
         box_preds = box_preds.permute(0, 2, 3, 1).contiguous()  # [N, H, W, C]
 
-        self.forward_ret_dict['cls_preds'] = cls_preds
-        self.forward_ret_dict['box_preds'] = box_preds
+        self.forward_ret_dict['cls_preds'] = cls_preds  # 类别预测结果  pcdet/models/dense_heads/anchor_head_template.py会用到
+        self.forward_ret_dict['box_preds'] = box_preds # 位置预测结果
 
         if self.conv_dir_cls is not None:
             dir_cls_preds = self.conv_dir_cls(spatial_features_2d)
             dir_cls_preds = dir_cls_preds.permute(0, 2, 3, 1).contiguous()
-            self.forward_ret_dict['dir_cls_preds'] = dir_cls_preds
+            self.forward_ret_dict['dir_cls_preds'] = dir_cls_preds # 
         else:
             dir_cls_preds = None
 
