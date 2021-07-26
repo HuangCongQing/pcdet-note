@@ -104,7 +104,7 @@ class AnchorHeadTemplate(nn.Module):
         """ 
         torch.Size([3, 248, 216, 18]) # 类别预测结果
         torch.Size([3, 321408]) # box类别标签
-        
+
         数字分析：
         C1通道：18 = 3 x 3 x 2，3帧点云，每一帧点云在backbon得到的feature map 上每一个位置生成2个anchor，每个anchor预测Car、Pedestrian、Cyclists 这 3个类别。
         num_anchors ： 321408 = 107136 x 3，3帧点云，每一帧点云生成107136 = 248 x 216 x 2个anchor。
@@ -171,57 +171,73 @@ class AnchorHeadTemplate(nn.Module):
             dir_targets.scatter_(-1, dir_cls_targets.unsqueeze(dim=-1).long(), 1.0)
             dir_cls_targets = dir_targets
         return dir_cls_targets
-    # -----------------------------得到回归损失---------------------------------------------
+    # ----------------------------------- 计算box 位置 loss  https://blog.csdn.net/W1995S/article/details/115399145 --------------------------------
     def get_box_reg_layer_loss(self):
-        box_preds = self.forward_ret_dict['box_preds']  # 来源:     self.forward_ret_dict['cls_preds'] = cls_preds  pcdet/models/dense_heads/anchor_head_single.py
-        box_dir_cls_preds = self.forward_ret_dict.get('dir_cls_preds', None)
-        box_reg_targets = self.forward_ret_dict['box_reg_targets']
-        box_cls_labels = self.forward_ret_dict['box_cls_labels']
-        batch_size = int(box_preds.shape[0])
+        box_preds = self.forward_ret_dict['box_preds']   # 位置预测结果 [N, H, W, C2] = [3, 248, 216, 42] # 来源:     self.forward_ret_dict['cls_preds'] = cls_preds  pcdet/models/dense_heads/anchor_head_single.py
+        box_dir_cls_preds = self.forward_ret_dict.get('dir_cls_preds', None)  # 方向、类别预测结果 [N, H, W, C3] = [3,248,216,12]  12??????????????
+        box_reg_targets = self.forward_ret_dict['box_reg_targets'] # box回归目标 [3, 321408, 7]
+        box_cls_labels = self.forward_ret_dict['box_cls_labels']  # box类别标签 [3, 321408]   (num_anchors ： 321408 = 107136 x 3，3帧点云(batch_size)，每一帧点云生成107136 = 248 x 216 x 2个anchor。)
+        """ 
+        torch.Size([3, 248, 216, 42]) # 位置预测结果 [N, H, W, C2]
+        torch.Size([3, 248, 216, 12]) # 方向预测结果 [N, H, W, C3]
+        torch.Size([3, 321408, 7]) # box回归目标
+        torch.Size([3, 321408]) # box类别标签
 
-        positives = box_cls_labels > 0
-        reg_weights = positives.float()
-        pos_normalizer = positives.sum(1, keepdim=True).float()
-        reg_weights /= torch.clamp(pos_normalizer, min=1.0)
+        数字解释：
+            42：3帧点云，每一帧每个位置有14个预测值，14 = 7 x 2 ，2个anchor，7个回归坐标。
+            12：3帧点云，每一帧每个位置预测2个anchor，2个方向？
+        ————————————————
+        版权声明：本文为CSDN博主「THE@JOKER」的原创文章，遵循CC 4.0 BY-SA版权协议，转载请附上原文出处链接及本声明。
+        原文链接：https://blog.csdn.net/W1995S/article/details/115399145
+        
+         """
+        batch_size = int(box_preds.shape[0]) # 
+
+        positives = box_cls_labels > 0 # 正样本标签
+        reg_weights = positives.float() # 只保留标签>0的值
+        pos_normalizer = positives.sum(1, keepdim=True).float()  # 行和，[3,1]，根据统计，每行都是100以上的值=1x?+2x?+3x?
+        reg_weights /= torch.clamp(pos_normalizer, min=1.0) # 最小1.0 ,很像归一化, 仅是正样本
 
         if isinstance(self.anchors, list):
-            if self.use_multihead:
+            if self.use_multihead:   # False
                 anchors = torch.cat(
                     [anchor.permute(3, 4, 0, 1, 2, 5).contiguous().view(-1, anchor.shape[-1]) for anchor in
                      self.anchors], dim=0)
             else:
                 anchors = torch.cat(self.anchors, dim=-3)
         else:
-            anchors = self.anchors
-        anchors = anchors.view(1, -1, anchors.shape[-1]).repeat(batch_size, 1, 1)
+            anchors = self.anchors   # [1, 248, 216, 3, 2, 7]
+        anchors = anchors.view(1, -1, anchors.shape[-1]).repeat(batch_size, 1, 1)  # [3, 321408, 7]==========================================================
         box_preds = box_preds.view(batch_size, -1,
                                    box_preds.shape[-1] // self.num_anchors_per_location if not self.use_multihead else
-                                   box_preds.shape[-1])
-        # sin(a - b) = sinacosb-cosasinb
-        box_preds_sin, reg_targets_sin = self.add_sin_difference(box_preds, box_reg_targets)
+                                   box_preds.shape[-1])   # [3, 321408, 7]
+        # sin(a - b) = sinacosb-cosasinb    仅计算最后一个维度
+        box_preds_sin, reg_targets_sin = self.add_sin_difference(box_preds, box_reg_targets)  # 均 [3, 321408, 7]
+
+        # 调用 WeightedSmoothL1Loss 计算位置损失函数
         loc_loss_src = self.reg_loss_func(box_preds_sin, reg_targets_sin, weights=reg_weights)  # [N, M]
         loc_loss = loc_loss_src.sum() / batch_size
-
-        loc_loss = loc_loss * self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['loc_weight']
+        loc_loss = loc_loss * self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['loc_weight']   # 损失权重，loc_weight: 2.0
         box_loss = loc_loss
         tb_dict = {
             'rpn_loss_loc': loc_loss.item()
         }
-
-        if box_dir_cls_preds is not None:
+        # 获取方向目标。=================================================
+        if box_dir_cls_preds is not None:  # [3,248,216,12]  方向、类别预测结果 [N, H, W, C3] = [3,248,216,12] 
             dir_targets = self.get_direction_target(
-                anchors, box_reg_targets,
-                dir_offset=self.model_cfg.DIR_OFFSET,
-                num_bins=self.model_cfg.NUM_DIR_BINS
-            )
-
-            dir_logits = box_dir_cls_preds.view(batch_size, -1, self.model_cfg.NUM_DIR_BINS)
-            weights = positives.type_as(dir_logits)
-            weights /= torch.clamp(weights.sum(-1, keepdim=True), min=1.0)
+                anchors, box_reg_targets,   # 均 [3, 321408, 7]
+                dir_offset=self.model_cfg.DIR_OFFSET,   # 方向偏移量 0.78539 = π/4
+                num_bins=self.model_cfg.NUM_DIR_BINS # BINS的方向数 = 2
+            )  # [3, 321408, 2]
+            # 方向损失函数：计算方向损失
+            dir_logits = box_dir_cls_preds.view(batch_size, -1, self.model_cfg.NUM_DIR_BINS)   # 方向预测值 [3, 321408, 2]
+            weights = positives.type_as(dir_logits)   # 只要正样本的方向预测值
+            weights /= torch.clamp(weights.sum(-1, keepdim=True), min=1.0)  # [3, 321408]
             dir_loss = self.dir_loss_func(dir_logits, dir_targets, weights=weights)
             dir_loss = dir_loss.sum() / batch_size
-            dir_loss = dir_loss * self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['dir_weight']
-            box_loss += dir_loss
+            dir_loss = dir_loss * self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['dir_weight']  # 损失权重，dir_weight: 0.2
+            # 总的位置损失==============================
+            box_loss += dir_loss    # 位置损失 + 方向(c朝向角)损失
             tb_dict['rpn_loss_dir'] = dir_loss.item()
 
         return box_loss, tb_dict

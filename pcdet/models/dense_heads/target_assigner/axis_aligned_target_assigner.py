@@ -128,7 +128,7 @@ class AxisAlignedTargetAssigner(object):
 
         }
         return all_targets_dict
-
+    # # 分配目标   https://blog.csdn.net/W1995S/article/details/115486685
     def assign_targets_single(self, anchors, gt_boxes, gt_classes, matched_threshold=0.6, unmatched_threshold=0.45):
 
         num_anchors = anchors.shape[0]
@@ -168,7 +168,7 @@ class AxisAlignedTargetAssigner(object):
         else:
             bg_inds = torch.arange(num_anchors, device=anchors.device)
 
-        fg_inds = (labels > 0).nonzero()[:, 0]
+        fg_inds = (labels > 0).nonzero()[:, 0]  # fg_inds：正样本索引
 
         if self.pos_fraction is not None:
             num_fg = int(self.pos_fraction * self.sample_size)
@@ -191,10 +191,12 @@ class AxisAlignedTargetAssigner(object):
                 labels[anchors_with_max_overlap] = gt_classes[gt_inds_force]
 
         bbox_targets = anchors.new_zeros((num_anchors, self.box_coder.code_size))
+        # fg_gt_boxes和fg_anchors https://blog.csdn.net/W1995S/article/details/115622885
         if len(gt_boxes) > 0 and anchors.shape[0] > 0:
-            fg_gt_boxes = gt_boxes[anchor_to_gt_argmax[fg_inds], :]
-            fg_anchors = anchors[fg_inds, :]
-            bbox_targets[fg_inds, :] = self.box_coder.encode_torch(fg_gt_boxes, fg_anchors)
+            fg_gt_boxes = gt_boxes[anchor_to_gt_argmax[fg_inds], :]   # gt_box： [扩展之后的gt_num=正样本数, 7]
+            fg_anchors = anchors[fg_inds, :]  # 前景anchor，即正样本： [正样本数, 7]
+
+            bbox_targets[fg_inds, :] = self.box_coder.encode_torch(fg_gt_boxes, fg_anchors)   # 编码之后的(△x.....)
 
         reg_weights = anchors.new_zeros((num_anchors,))
 

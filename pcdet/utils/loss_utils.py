@@ -73,7 +73,7 @@ class SigmoidFocalClassificationLoss(nn.Module):
 
         return loss * weights # 
 
-# smoothL1 loss
+# smoothL1 loss  # 位置损失函数：加权 Smooth L1 Loss
 class WeightedSmoothL1Loss(nn.Module):
     """
     Code-wise Weighted Smooth L1 Loss modified based on fvcore.nn.smooth_l1_loss
@@ -93,14 +93,14 @@ class WeightedSmoothL1Loss(nn.Module):
                 Code-wise weights.
         """
         super(WeightedSmoothL1Loss, self).__init__()
-        self.beta = beta
-        if code_weights is not None:
+        self.beta = beta # 0.11111
+        if code_weights is not None:   # [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]  7维
             self.code_weights = np.array(code_weights, dtype=np.float32)
             self.code_weights = torch.from_numpy(self.code_weights).cuda()
 
     @staticmethod
     def smooth_l1_loss(diff, beta):
-        if beta < 1e-5:
+        if beta < 1e-5:   # beta=0.11111 > 0.00001
             loss = torch.abs(diff)
         else:
             n = torch.abs(diff)
@@ -111,31 +111,34 @@ class WeightedSmoothL1Loss(nn.Module):
     def forward(self, input: torch.Tensor, target: torch.Tensor, weights: torch.Tensor = None):
         """
         Args:
-            input: (B, #anchors, #codes) float tensor.
+            input: (B, #anchors, #codes) float tensor.     [3, 321408, 7]
                 Ecoded predicted locations of objects.
-            target: (B, #anchors, #codes) float tensor.
+            target: (B, #anchors, #codes) float tensor.    [3, 321408, 7]
                 Regression targets.
-            weights: (B, #anchors) float tensor if not None.
+            weights: (B, #anchors) float tensor if not None.  [3, 321408]
 
         Returns:
-            loss: (B, #anchors) float tensor.
-                Weighted smooth l1 loss without reduction.
+            loss: (B, #anchors) float tensor.              [3, 321408, 7]
+                加权的 smooth l1 loss without reduction.
+————————————————
+版权声明：本文为CSDN博主「THE@JOKER」的原创文章，遵循CC 4.0 BY-SA版权协议，转载请附上原文出处链接及本声明。
+原文链接：https://blog.csdn.net/W1995S/article/details/115399145
         """
-        target = torch.where(torch.isnan(target), input, target)  # ignore nan targets
+        target = torch.where(torch.isnan(target), input, target)  # ignore nan targets   # 忽略 nan targets
 
-        diff = input - target
+        diff = input - target   # 差值(前6个值做差，最后一个角度编码值就差做差了)
         # code-wise weighting
         if self.code_weights is not None:
             diff = diff * self.code_weights.view(1, 1, -1)
 
-        loss = self.smooth_l1_loss(diff, self.beta)
+        loss = self.smooth_l1_loss(diff, self.beta)   # [3, 321408, 7]
 
         # anchor-wise weighting
-        if weights is not None:
+        if weights is not None:  # [3, 321408]
             assert weights.shape[0] == loss.shape[0] and weights.shape[1] == loss.shape[1]
-            loss = loss * weights.unsqueeze(-1)
+            loss = loss * weights.unsqueeze(-1)   # [3, 321408, 7] * [3, 321408, 1]
 
-        return loss
+        return loss  # # [3, 321408, 7]
 
 
 class WeightedL1Loss(nn.Module):
@@ -191,20 +194,20 @@ class WeightedCrossEntropyLoss(nn.Module):
     def forward(self, input: torch.Tensor, target: torch.Tensor, weights: torch.Tensor):
         """
         Args:
-            input: (B, #anchors, #classes) float tensor.
+            input: (B, #anchors, #classes) float tensor.   方向预测值 [3, 321408, 2]
                 Predited logits for each class.
-            target: (B, #anchors, #classes) float tensor.
+            target: (B, #anchors, #classes) float tensor.  方向目标 [3, 321408, 2]
                 One-hot classification targets.
-            weights: (B, #anchors) float tensor.
+            weights: (B, #anchors) float tensor.           权重参数 [3, 321408]
                 Anchor-wise weights.
 
         Returns:
             loss: (B, #anchors) float tensor.
                 Weighted cross entropy loss without reduction
         """
-        input = input.permute(0, 2, 1)
-        target = target.argmax(dim=-1)
-        loss = F.cross_entropy(input, target, reduction='none') * weights
+        input = input.permute(0, 2, 1)  # [3, 2, 321408]
+        target = target.argmax(dim=-1) # [3, 321408]
+        loss = F.cross_entropy(input, target, reduction='none') * weights    # 计算交叉熵损失
         return loss
 
 # 角corner损失
