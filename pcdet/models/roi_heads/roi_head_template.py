@@ -23,7 +23,7 @@ class RoIHeadTemplate(nn.Module):
     def build_losses(self, losses_cfg):
         self.add_module(
             'reg_loss_func',
-            loss_utils.WeightedSmoothL1Loss(code_weights=losses_cfg.LOSS_WEIGHTS['code_weights'])
+            loss_utils.WeightedSmoothL1Loss(code_weights=losses_cfg.LOSS_WEIGHTS['code_weights']) # # 计算L1 loss
         )
 
     def make_fc_layers(self, input_channels, output_channels, fc_list):

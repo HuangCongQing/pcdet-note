@@ -55,8 +55,8 @@ MODEL:
         LOSS_CONFIG:
             LOSS_REG: WeightedSmoothL1Loss
             LOSS_WEIGHTS: {
-                'point_cls_weight': 1.0,
-                'point_box_weight': 1.0,
+                'point_cls_weight': 1.0,  # 分类权重
+                'point_box_weight': 1.0, # 回归权重
                 'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
             }
 
