@@ -268,18 +268,19 @@ def boxes_iou_normal(boxes_a, boxes_b):
     iou = a_intersect_b / torch.clamp_min(area_a[:, None] + area_b[None, :] - a_intersect_b, min=1e-6)
     return iou
 
-
+#  雷达坐标系，转换到bev视图坐标
 def boxes3d_lidar_to_aligned_bev_boxes(boxes3d):
     """
     Args:
-        boxes3d: (N, 7 + C) [x, y, z, dx, dy, dz, heading] in lidar coordinate
+        boxes3d: (N, 7 + C) [x, y, z, dx, dy, dz, heading] in lidar coordinate  在激光雷达坐标系中
 
     Returns:
-        aligned_bev_boxes: (N, 4) [x1, y1, x2, y2] in the above lidar coordinate
+        aligned_bev_boxes: (N, 4) [x1, y1, x2, y2] in the above lidar coordinate  in the above lidar coordinate 俯视图
     """
-    rot_angle = common_utils.limit_period(boxes3d[:, 6], offset=0.5, period=np.pi).abs()
+    rot_angle = common_utils.limit_period(boxes3d[:, 6], offset=0.5, period=np.pi).abs()# 旋转角度，只希望pi/2到-pi/2范围  ------limit_period
+    # 进一步，将全部gt_box规范到pi/4到-pi/4范围内，好匹配
     choose_dims = torch.where(rot_angle[:, None] < np.pi / 4, boxes3d[:, [3, 4]], boxes3d[:, [4, 3]])
-    aligned_bev_boxes = torch.cat((boxes3d[:, 0:2] - choose_dims / 2, boxes3d[:, 0:2] + choose_dims / 2), dim=1)
+    aligned_bev_boxes = torch.cat((boxes3d[:, 0:2] - choose_dims / 2, boxes3d[:, 0:2] + choose_dims / 2), dim=1) # 中心 + 长宽
     return aligned_bev_boxes
 
 

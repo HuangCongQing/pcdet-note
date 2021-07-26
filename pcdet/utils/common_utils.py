@@ -16,11 +16,12 @@ def check_numpy_to_torch(x):
         return torch.from_numpy(x).float(), True
     return x, False
 
-
+# 
 def limit_period(val, offset=0.5, period=np.pi):
     val, is_numpy = check_numpy_to_torch(val)
-    ans = val - torch.floor(val / period + offset) * period
-    return ans.numpy() if is_numpy else ans
+    ans = val - torch.floor(val / period + offset) * period #  向下取整，不大于元素的最大整数  
+    # 公式：val - torch.floor(val / period + offset) * period如下，角度规范到pi/2到-pi/2范围
+    return ans.numpy() if is_numpy else ans # 结果需要转numpy
 
 
 def drop_info_with_name(info, name):

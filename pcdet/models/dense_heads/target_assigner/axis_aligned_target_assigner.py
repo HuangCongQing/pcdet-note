@@ -130,16 +130,19 @@ class AxisAlignedTargetAssigner(object):
         return all_targets_dict
     # # 分配目标   https://blog.csdn.net/W1995S/article/details/115486685
     def assign_targets_single(self, anchors, gt_boxes, gt_classes, matched_threshold=0.6, unmatched_threshold=0.45):
+        # Car：匹配使用0.6和0.45的正负样本阈值
+        # anchors：[107136, 7]
+        # gt_boxes：[num, 7]
+        # gt_classes：[1, num] ,Car:全是1、Pedestrian:全是2、Cyclist:全是3 , gt_boxes的类别标签
+        num_anchors = anchors.shape[0]  # 107136
+        num_gt = gt_boxes.shape[0] # 不固定
 
-        num_anchors = anchors.shape[0]
-        num_gt = gt_boxes.shape[0]
-
-        labels = torch.ones((num_anchors,), dtype=torch.int32, device=anchors.device) * -1
-        gt_ids = torch.ones((num_anchors,), dtype=torch.int32, device=anchors.device) * -1
+        labels = torch.ones((num_anchors,), dtype=torch.int32, device=anchors.device) * -1  # [-1, -1, -1,  ...] [107136, 1]
+        gt_ids = torch.ones((num_anchors,), dtype=torch.int32, device=anchors.device) * -1  # [-1, -1, -1,  ...] [107136, 1]
         # IOU 计算  https://blog.csdn.net/W1995S/article/details/115413428
         if len(gt_boxes) > 0 and anchors.shape[0] > 0:
             anchor_by_gt_overlap = iou3d_nms_utils.boxes_iou3d_gpu(anchors[:, 0:7], gt_boxes[:, 0:7]) \
-                if self.match_height else box_utils.boxes3d_nearest_bev_iou(anchors[:, 0:7], gt_boxes[:, 0:7])
+                if self.match_height else box_utils.boxes3d_nearest_bev_iou(anchors[:, 0:7], gt_boxes[:, 0:7]) # boxes3d_nearest_bev_iou???
 
             # (cx, cy, cz) 为物体3D框的几何中心位置，(dx, dy, dz)分别为物体3D框在heading角度为0时沿着x-y-z三个方向的长度，heading为物体在俯视图下的朝向角
             # anchors[:, 0:7]  #(cx, cy, cz, dx, dy, dz, heading)    torch.Size([107136, 7])  # 固定107136个anchor，2种角度：0°、90°
