@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 from . import box_utils
 
-
+# 多标签分类损失函数使用的是focal loss  ref: https://blog.csdn.net/W1995S/article/details/114687437
 class SigmoidFocalClassificationLoss(nn.Module):
     """
     Sigmoid focal cross entropy loss.
@@ -21,7 +21,7 @@ class SigmoidFocalClassificationLoss(nn.Module):
         self.alpha = alpha
         self.gamma = gamma
 
-    @staticmethod
+    @staticmethod  # 代码自定义了tf.nn.sigmoid_cross_entropy_with_logits()交叉熵损失，这里以sigmoid函数做为logistic函数，所有输入sigmoid之前的函数都可以叫logit，这里是多输入，所以叫logits
     def sigmoid_cross_entropy_with_logits(input: torch.Tensor, target: torch.Tensor):
         """ PyTorch Implementation for tf.nn.sigmoid_cross_entropy_with_logits:
             max(x, 0) - x * z + log(1 + exp(-abs(x))) in
@@ -57,21 +57,21 @@ class SigmoidFocalClassificationLoss(nn.Module):
         pred_sigmoid = torch.sigmoid(input)
         alpha_weight = target * self.alpha + (1 - target) * (1 - self.alpha)
         pt = target * (1.0 - pred_sigmoid) + (1.0 - target) * pred_sigmoid
-        focal_weight = alpha_weight * torch.pow(pt, self.gamma)
+        focal_weight = alpha_weight * torch.pow(pt, self.gamma) @ 
 
-        bce_loss = self.sigmoid_cross_entropy_with_logits(input, target)
+        bce_loss = self.sigmoid_cross_entropy_with_logits(input, target) # 代码自定义了tf.nn.sigmoid_cross_entropy_with_logits()交叉熵损失，这里以sigmoid函数做为logistic函数，所有输入sigmoid之前的函数都可以叫logit，这里是多输入，所以叫logits
 
-        loss = focal_weight * bce_loss
+        loss = focal_weight * bce_loss # 
 
         if weights.shape.__len__() == 2 or \
                 (weights.shape.__len__() == 1 and target.shape.__len__() == 2):
-            weights = weights.unsqueeze(-1)
+            weights = weights.unsqueeze(-1) # 权重  传入的weights参数对每个正anchor和负anchor进行了一个平均，使得每个样本的损失与样本中目标的数量无关。
 
         assert weights.shape.__len__() == loss.shape.__len__()
 
-        return loss * weights
+        return loss * weights # 
 
-
+# smoothL1 loss
 class WeightedSmoothL1Loss(nn.Module):
     """
     Code-wise Weighted Smooth L1 Loss modified based on fvcore.nn.smooth_l1_loss
@@ -177,7 +177,7 @@ class WeightedL1Loss(nn.Module):
 
         return loss
 
-
+# 交叉熵损失
 class WeightedCrossEntropyLoss(nn.Module):
     """
     Transform input to fit the fomation of PyTorch offical cross entropy loss
@@ -205,7 +205,7 @@ class WeightedCrossEntropyLoss(nn.Module):
         loss = F.cross_entropy(input, target, reduction='none') * weights
         return loss
 
-
+# 角corner损失
 def get_corner_loss_lidar(pred_bbox3d: torch.Tensor, gt_bbox3d: torch.Tensor):
     """
     Args:
