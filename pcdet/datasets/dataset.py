@@ -147,15 +147,15 @@ class DatasetTemplate(torch_data.Dataset):
 
         return data_dict
 
-    @staticmethod
+    @staticmethod #  将data_dict传入后命名为batch_list  返回值：  ====================================================
     def collate_batch(batch_list, _unused=False):
-        data_dict = defaultdict(list)
+        data_dict = defaultdict(list) # defaultdict 表示在当字典里的key不存在但被查找时，返回的不是keyError而是一个默认值
         for cur_sample in batch_list:
-            for key, val in cur_sample.items():
+            for key, val in cur_sample.items(): # cur_sample 表示现在的样本值（current sample），也是DemoDataset类
                 data_dict[key].append(val)
         batch_size = len(batch_list)
         ret = {}
-
+        # 遍历6次  # data_dict{dict: 6}： 'points'(60270,4) 'voxels'' voxel_num_points'
         for key, val in data_dict.items():
             try:
                 if key in ['voxels', 'voxel_num_points']: # 对应体素

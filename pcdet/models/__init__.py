@@ -16,7 +16,7 @@ from .detectors import build_detector
 
 # 这里的build_networks是继承的Detector3DTemplate中的函数
 def build_network(model_cfg, num_class, dataset):
-    model = build_detector(
+    model = build_detector( # build_network函数内只有一个build_detector函数，build_detector的定来源：   pcdet/models/detectors/__init__.py
         model_cfg=model_cfg, num_class=num_class, dataset=dataset
     )
     return model

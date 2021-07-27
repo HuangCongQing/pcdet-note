@@ -8,10 +8,17 @@ LastEditTime: 2021-06-20 21:37:11
 FilePath: /PCDet/pcdet/models/detectors/pv_rcnn.py
 '''
 from .detector3d_template import Detector3DTemplate
+""" 
+主要这两个函数forward和get_training_loss
+    # 定位到forward，在神经网络中向前传递数据data_dict，得到预测数据pred_dicts
+    def forward(self, batch_dict):
+    #training_loss
+    def get_training_loss(self): #training_loss
 
+ """
 
 class PVRCNN(Detector3DTemplate):
-    def __init__(self, model_cfg, num_class, dataset):
+    def __init__(self, model_cfg, num_class, dataset): # 初始化参数
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
         self.module_list = self.build_networks() # 这里的build_networks是继承的Detector3DTemplate中的函数
     # 定位到forward，在神经网络中向前传递数据data_dict，得到预测数据pred_dicts

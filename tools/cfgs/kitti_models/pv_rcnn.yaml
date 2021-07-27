@@ -1,4 +1,8 @@
-CLASS_NAMES: ['Car', 'Pedestrian', 'Cyclist']
+# CLASS_NAMES  类别  CLASS_NAMES: ['Car', 'Pedestrian', 'Cyclist'] # 分成三类
+# DATA_CONFIG  数据配置
+# MODEL 模型   (VFE, MAP_TO_BEV, BACKBONE_2D, DENSE_HEAD,  LOSS )
+# OPTIMIZATION  优化
+CLASS_NAMES: ['Car', 'Pedestrian', 'Cyclist'] # 分成三类
 
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml
@@ -29,7 +33,7 @@ DATA_CONFIG:
             - NAME: random_world_scaling
               WORLD_SCALE_RANGE: [0.95, 1.05]
 
-MODEL:
+MODEL: # model_cfg=cfg.MODEL, 加载:model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=demo_dataset)
     NAME: PVRCNN
 
     VFE:

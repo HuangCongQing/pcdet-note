@@ -45,7 +45,7 @@ class Detector3DTemplate(nn.Module):
                 model_info_dict=model_info_dict
             ) # getattr() 函数用于返回一个对象属性值，将build_module_name返回给了module
             self.add_module(module_name, module) #添加一个模块
-        return model_info_dict['module_list']
+        return model_info_dict['module_list'] # 返回
 
     def build_vfe(self, model_info_dict):
         if self.model_cfg.get('VFE', None) is None:
@@ -316,12 +316,12 @@ class Detector3DTemplate(nn.Module):
         else:
             gt_iou = box_preds.new_zeros(box_preds.shape[0])
         return recall_dict
-    # 加载权重文件
+    # 加载权重文件 (.pth文件) 举例:'../output/kitti_models/pointpillar/default/ckpt/checkpoint_epoch_1.pth'
     def load_params_from_file(self, filename, logger, to_cpu=False):
         if not os.path.isfile(filename):
             raise FileNotFoundError
 
-        logger.info('==> 【detector3d_template.py】Loading parameters from checkpoint %s to %s' % (filename, 'CPU' if to_cpu else 'GPU'))
+        logger.info('==> 【detector3d_template.py】加载权重文件Loading parameters from checkpoint %s to %s' % (filename, 'CPU' if to_cpu else 'GPU'))
         loc_type = torch.device('cpu') if to_cpu else None
         checkpoint = torch.load(filename, map_location=loc_type)
         model_state_disk = checkpoint['model_state']
