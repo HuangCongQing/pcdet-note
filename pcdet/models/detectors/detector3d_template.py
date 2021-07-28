@@ -6,21 +6,21 @@ import torch.nn as nn
 from ...ops.iou3d_nms import iou3d_nms_utils # nms
 from .. import backbones_2d, backbones_3d, dense_heads, roi_heads # import
 from ..backbones_2d import map_to_bev
-from ..backbones_3d import pfe, vfe
+from ..backbones_3d import pfe, vfe # pfe和vfe文件夹
 from ..model_utils import model_nms_utils # nms??
 
 
 class Detector3DTemplate(nn.Module):
     def __init__(self, model_cfg, num_class, dataset):
         super().__init__()
-        self.model_cfg = model_cfg
+        self.model_cfg = model_cfg  # 模型参数，model_cfg=cfg.MODEL 举例：pv_rcnn！！！！！！！！！！！！！！！！！！！！！！！！！！！！
         self.num_class = num_class
         self.dataset = dataset
         self.class_names = dataset.class_names
         self.register_buffer('global_step', torch.LongTensor(1).zero_())
 
-        self.module_topology = [ # 储存了网络中的每一个模块,vfe表示voxel_feature，pfe表示point_feature
-            'vfe', 'backbone_3d', 'map_to_bev_module', 'pfe', # 
+        self.module_topology = [ # 储存了网络中的每一个模块
+            'vfe', 'backbone_3d', 'map_to_bev_module', 'pfe', # vfe表示voxel_feature，pfe表示point_feature
             'backbone_2d', 'dense_head',  'point_head', 'roi_head' # dense_head处理backbone_2d， point_head处理pfe数据，roi_head处理dense_head（RPN head）和point_head
         ]# 
 
@@ -30,28 +30,28 @@ class Detector3DTemplate(nn.Module):
 
     def update_global_step(self):
         self.global_step += 1
-
+    # PVRCNN 使用   self.module_list = self.build_networks() # 
     def build_networks(self):
         model_info_dict = {#参数
             'module_list': [],  #使用的模型
-            'num_rawpoint_features': self.dataset.point_feature_encoder.num_point_features, #点云特征
-            'num_point_features': self.dataset.point_feature_encoder.num_point_features,
-            'grid_size': self.dataset.grid_size, #网格大小
-            'point_cloud_range': self.dataset.point_cloud_range, #点云范围
-            'voxel_size': self.dataset.voxel_size #体素大小
+            'num_rawpoint_features': self.dataset.point_feature_encoder.num_point_features, #点云特征(__init__已经获取到数值)
+            'num_point_features': self.dataset.point_feature_encoder.num_point_features, # (__init__已经获取到数值)
+            'grid_size': self.dataset.grid_size, #网格大小 (__init__已经获取到数值)
+            'point_cloud_range': self.dataset.point_cloud_range, #点云范围 (__init__已经获取到数值)
+            'voxel_size': self.dataset.voxel_size #体素大小 (__init__已经获取到数值)
         }
-        for module_name in self.module_topology: #   module_topology储存了网络中的每一个module
-            module, model_info_dict = getattr(self, 'build_%s' % module_name)(
-                model_info_dict=model_info_dict
-            ) # getattr() 函数用于返回一个对象属性值，将build_module_name返回给了module
-            self.add_module(module_name, module) #添加一个模块
-        return model_info_dict['module_list'] # 返回
+        for module_name in self.module_topology: # 上文line  22   {list: 8} 在Detector3DTemplate中继承的   module_topology储存了网络中的每一个module
+            module, model_info_dict = getattr(self, 'build_%s' % module_name)( # # getattr() 函数用于返回一个对象属性值，将build_module_name返回给了module
+                model_info_dict=model_info_dict # 上文参数
+            ) 
+            self.add_module(module_name, module) #添加一个模块  module
+        return model_info_dict['module_list'] # 返回==============================================
 
     def build_vfe(self, model_info_dict):
-        if self.model_cfg.get('VFE', None) is None:
-            return None, model_info_dict
-
-        vfe_module = vfe.__all__[self.model_cfg.VFE.NAME](
+        if self.model_cfg.get('VFE', None) is None: # model_cfg=cfg.MODEL ！！！！！！！！！！！！
+            return None, model_info_dict # None 返回空
+        # __all__定义在每个模块的__init__.py中
+        vfe_module = vfe.__all__[self.model_cfg.VFE.NAME]( # example： NAME: MeanVFE
             model_cfg=self.model_cfg.VFE,
             num_point_features=model_info_dict['num_rawpoint_features'],
             point_cloud_range=model_info_dict['point_cloud_range'],
@@ -59,7 +59,7 @@ class Detector3DTemplate(nn.Module):
         )
         model_info_dict['num_point_features'] = vfe_module.get_output_feature_dim()
         model_info_dict['module_list'].append(vfe_module)
-        return vfe_module, model_info_dict
+        return vfe_module, model_info_dict # 有VFE ，处理后返回
 
     def build_backbone_3d(self, model_info_dict):
         if self.model_cfg.get('BACKBONE_3D', None) is None:

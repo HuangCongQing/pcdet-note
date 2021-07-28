@@ -101,13 +101,14 @@ def main():
 
     # torch.no_grad( ) 的目的是使得其中的数据不需要计算梯度，也不会进行反向传播
     with torch.no_grad():
-        for idx, data_dict in enumerate(demo_dataset): # demo_dataset = DemoDataset( # 加载数据
+        # 多少个bin文件，就遍历几次
+        for idx, data_dict in enumerate(demo_dataset): # demo_dataset = DemoDataset( # 加载数据---  class DemoDataset(DatasetTemplate): ---class DatasetTemplate(torch_data.Dataset):
             # data_dict{dict: 6}： 'points'(60270,4) 'voxels'' voxel_num_points'
             logger.info(f'Visualized sample index: \t{idx + 1}') # 样本数
             # 4. collate_batch
-            data_dict = demo_dataset.collate_batch([data_dict]) # 来源：pcdet/datasets/dataset.py        def collate_batch(batch_list, _unused=False):
+            data_dict = demo_dataset.collate_batch([data_dict]) # 外面加了一个[] 来源：pcdet/datasets/dataset.py        def collate_batch(batch_list, _unused=False):
             load_data_to_gpu(data_dict) # 传递数据给gpu的
-            pred_dicts, _ = model.forward(data_dict) #  在神经网络中向前传递数据data_dict，得到预测数据pred_dicts     定位到forward，因为是PVRCNN类下的函数，先看__init__  /home/hcq/pointcloud/PCDet/pcdet/models/detectors/pv_rcnn.py
+            pred_dicts, _ = model.forward(data_dict) # # class PVRCNN(Detector3DTemplate):！！！！！  在神经网络中向前传递数据data_dict，得到预测数据pred_dicts     定位到forward，因为是PVRCNN类下的函数，先看__init__  /home/hcq/pointcloud/PCDet/pcdet/models/detectors/pv_rcnn.py
             # 可视化V
             # V.draw_scenes(
             #     points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],

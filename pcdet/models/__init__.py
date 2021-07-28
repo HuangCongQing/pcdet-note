@@ -21,10 +21,10 @@ def build_network(model_cfg, num_class, dataset):
     )
     return model
 
-
+# 加载数据到gpu
 def load_data_to_gpu(batch_dict):
     for key, val in batch_dict.items():
-        if not isinstance(val, np.ndarray):
+        if not isinstance(val, np.ndarray): #  #判断一个对象是否是一个已知的类型，ndarray对象是用于存放同类型元素的多维数组
             continue
         if key in ['frame_id', 'metadata', 'calib', 'image_shape']:
             continue

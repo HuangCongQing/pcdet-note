@@ -17,7 +17,7 @@ class DatasetTemplate(torch_data.Dataset):
         self.training = training
         self.class_names = class_names
         self.logger = logger
-        self.root_path = root_path if root_path is not None else Path(self.dataset_cfg.DATA_PATH)
+        self.root_path = root_path if root_path is not None else Path(self.dataset_cfg.DATA_PATH) # bin文件路径
         self.logger = logger
         if self.dataset_cfg is None or class_names is None:
             return
@@ -27,7 +27,7 @@ class DatasetTemplate(torch_data.Dataset):
             self.dataset_cfg.POINT_FEATURE_ENCODING,
             point_cloud_range=self.point_cloud_range
         )
-        self.data_augmentor = DataAugmentor(
+        self.data_augmentor = DataAugmentor( # DataAugmentor
             self.root_path, self.dataset_cfg.DATA_AUGMENTOR, self.class_names, logger=self.logger
         ) if self.training else None
         self.data_processor = DataProcessor(
@@ -150,20 +150,20 @@ class DatasetTemplate(torch_data.Dataset):
     @staticmethod #  将data_dict传入后命名为batch_list  返回值：  ====================================================
     def collate_batch(batch_list, _unused=False):
         data_dict = defaultdict(list) # defaultdict 表示在当字典里的key不存在但被查找时，返回的不是keyError而是一个默认值
-        for cur_sample in batch_list:
-            for key, val in cur_sample.items(): # cur_sample 表示现在的样本值（current sample），也是DemoDataset类
-                data_dict[key].append(val)
-        batch_size = len(batch_list)
+        for cur_sample in batch_list: # 遍历列表
+            for key, val in cur_sample.items(): # 对字典6个参数进行遍历cur_sample 表示现在的样本值（current sample），也是DemoDataset类
+                data_dict[key].append(val) # 保存在新的字典里面
+        batch_size = len(batch_list) # 列表中目前只有一个字典，应该多多少个bin文件就有多少字典dict？？？？
         ret = {}
         # 遍历6次  # data_dict{dict: 6}： 'points'(60270,4) 'voxels'' voxel_num_points'
         for key, val in data_dict.items():
             try:
-                if key in ['voxels', 'voxel_num_points']: # 对应体素
+                if key in ['voxels', 'voxel_num_points']: # 对应体素=================================
                     ret[key] = np.concatenate(val, axis=0) # 多个数组的拼接
-                elif key in ['points', 'voxel_coords']: # #对应关键点
+                elif key in ['points', 'voxel_coords']: # #对应关键点==================================
                     coors = []
                     for i, coor in enumerate(val):
-                        coor_pad = np.pad(coor, ((0, 0), (1, 0)), mode='constant', constant_values=i)
+                        coor_pad = np.pad(coor, ((0, 0), (1, 0)), mode='constant', constant_values=i) #   constant_values=i 表示第一维填充i
                         """
                             ((0,0),(1,0))
                             在二维数组array第一维（此处便是行）前面填充0行，最后面填充0行；
@@ -173,12 +173,12 @@ class DatasetTemplate(torch_data.Dataset):
                         """
                         coors.append(coor_pad) #将coor_pad补充在coors后面
                     ret[key] = np.concatenate(coors, axis=0)
-                elif key in ['gt_boxes']: # 对应真值
+                elif key in ['gt_boxes']: # 对应真值================================================
                     max_gt = max([len(x) for x in val]) # 找寻最大价值的点
                     batch_gt_boxes3d = np.zeros((batch_size, max_gt, val[0].shape[-1]), dtype=np.float32) # #画可视图用的
                     for k in range(batch_size):
                         batch_gt_boxes3d[k, :val[k].__len__(), :] = val[k]
-                    ret[key] = batch_gt_boxes3d
+                    ret[key] = batch_gt_boxes3d # 
                 else:
                     ret[key] = np.stack(val, axis=0) # #类似concatenate,给指定axis增加维度
             except:
@@ -186,4 +186,4 @@ class DatasetTemplate(torch_data.Dataset):
                 raise TypeError
 
         ret['batch_size'] = batch_size
-        return ret
+        return ret # 返回值
