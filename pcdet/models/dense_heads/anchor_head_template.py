@@ -242,7 +242,7 @@ class AnchorHeadTemplate(nn.Module):
 
         return box_loss, tb_dict
     # -------------------------------------- 获得损失 --------------------------------------
-    def get_loss(self):
+    def get_loss(self): #  pv_rcnn.py引用   loss_rpn, tb_dict = self.dense_head.get_loss() #
         cls_loss, tb_dict = self.get_cls_layer_loss()   # 计算classification loss    函数来源于下面   def get_cls_layer_loss(self):
         box_loss, tb_dict_box = self.get_box_reg_layer_loss() # 计算box regression loss
         tb_dict.update(tb_dict_box)
@@ -250,7 +250,7 @@ class AnchorHeadTemplate(nn.Module):
         print("rpn_loss:", rpn_loss)
 
         tb_dict['rpn_loss'] = rpn_loss.item()# rpn损失
-        return rpn_loss, tb_dict
+        return rpn_loss, tb_dict # 
 
     def generate_predicted_boxes(self, batch_size, cls_preds, box_preds, dir_cls_preds=None):
         """

@@ -2,7 +2,7 @@ import torch
 
 from ...ops.iou3d_nms import iou3d_nms_utils
 
-
+# 非极大值抑制
 def class_agnostic_nms(box_scores, box_preds, nms_config, score_thresh=None):
     src_box_scores = box_scores
     if score_thresh is not None:

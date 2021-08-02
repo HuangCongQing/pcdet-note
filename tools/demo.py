@@ -92,7 +92,8 @@ def main():
     logger.info(f'【demo.py】Total number of samples: \t{len(demo_dataset)}') # 文件数量
 
     # 2 调用的这些包就是pcdet/models/detectors下的某个py文件，# class PVRCNN(Detector3DTemplate):
-    model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=demo_dataset) # class PVRCNN(Detector3DTemplate):
+    model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=demo_dataset) #  # model_cfg.NAME:   'PVRCNN'      class PVRCNN(Detector3DTemplate):
+    # ！！！！model 对应  pcdet/models/detectors/pv_rcnn.py  对应参数在pcdet/models/detectors/__init__.py
     # 3 参数加载(.pth文件) 举例:'../output/kitti_models/pointpillar/default/ckpt/checkpoint_epoch_1.pth'
     model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True) 
     # cuda( ) 和 eval( ) 都是数据处理

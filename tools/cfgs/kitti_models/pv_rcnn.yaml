@@ -56,7 +56,7 @@ MODEL: # model_cfg=cfg.MODEL, 加载:model = build_network(model_cfg=cfg.MODEL, 
         NUM_UPSAMPLE_FILTERS: [256, 256]
 
     DENSE_HEAD:
-        NAME: AnchorHeadSingle
+        NAME: AnchorHeadSingle # 对应文件名 pcdet/models/dense_heads/anchor_head_single.py
         CLASS_AGNOSTIC: False
 
         USE_DIRECTION_CLASSIFIER: True
@@ -215,20 +215,20 @@ MODEL: # model_cfg=cfg.MODEL, 加载:model = build_network(model_cfg=cfg.MODEL, 
                 'rcnn_corner_weight': 1.0,
                 'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
             }
-
+    # 后处理
     POST_PROCESSING:
-        RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
-        SCORE_THRESH: 0.1
-        OUTPUT_RAW_SCORE: False
+        RECALL_THRESH_LIST: [0.3, 0.5, 0.7] #recall阈值列表
+        SCORE_THRESH: 0.1  #分数阈值
+        OUTPUT_RAW_SCORE: False  #输出原始分数
 
-        EVAL_METRIC: kitti
-
+        EVAL_METRIC: kitti  #评估指标
+        # NMS配置
         NMS_CONFIG:
-            MULTI_CLASSES_NMS: False
-            NMS_TYPE: nms_gpu
-            NMS_THRESH: 0.1
-            NMS_PRE_MAXSIZE: 4096
-            NMS_POST_MAXSIZE: 500
+            MULTI_CLASSES_NMS: False  # 多类NMS
+            NMS_TYPE: nms_gpu  #NMS类型
+            NMS_THRESH: 0.1 #NMS阈值(低于阈值舍弃)
+            NMS_PRE_MAXSIZE: 4096   #NMS上限
+            NMS_POST_MAXSIZE: 500  # NMS POST上限
 
 
 OPTIMIZATION:

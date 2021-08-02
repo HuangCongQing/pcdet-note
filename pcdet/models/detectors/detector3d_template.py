@@ -164,17 +164,18 @@ class Detector3DTemplate(nn.Module):
 
     def forward(self, **kwargs):
         raise NotImplementedError
-
+    #   后处理 引用： 【pv_rcnn.py】推理  pred_dicts, recall_dicts = self.post_processing(batch_dict) 
+    # https://blog.csdn.net/weixin_44579633/article/details/107542954#t6
     def post_processing(self, batch_dict):
         """
         Args:
-            batch_dict:
-                batch_size:
-                batch_cls_preds: (B, num_boxes, num_classes | 1) or (N1+N2+..., num_classes | 1)
+            batch_dict:  {dict: 25} ======
+                batch_size:  批数据大小===================1
+                batch_cls_preds: (B, num_boxes, num_classes | 1) or (N1+N2+..., num_classes | 1)  类别预测============
                                 or [(B, num_boxes, num_class1), (B, num_boxes, num_class2) ...]
                 multihead_label_mapping: [(num_class1), (num_class2), ...]
-                batch_box_preds: (B, num_boxes, 7+C) or (N1+N2+..., 7+C)
-                cls_preds_normalized: indicate whether batch_cls_preds is normalized
+                batch_box_preds: (B, num_boxes, 7+C) or (N1+N2+..., 7+C)   边框位置预测===============
+                cls_preds_normalized: indicate whether batch_cls_preds is normalized    是否归一化
                 batch_index: optional (N1+N2+...)
                 has_class_labels: True/False
                 roi_labels: (B, num_rois)  1 .. num_classes
@@ -182,28 +183,28 @@ class Detector3DTemplate(nn.Module):
         Returns:
 
         """
-        post_process_cfg = self.model_cfg.POST_PROCESSING
-        batch_size = batch_dict['batch_size']
+        post_process_cfg = self.model_cfg.POST_PROCESSING   #  #配置参数(  有很多个子参数：recall阈值列表[0.3, 0.5, 0.7]    分数阈值   输出原始分数)
+        batch_size = batch_dict['batch_size']  #批数据大小 ？？？？
         recall_dict = {}
         pred_dicts = []
-        for index in range(batch_size):
+        for index in range(batch_size):   #在一批数据中
             if batch_dict.get('batch_index', None) is not None:
                 assert batch_dict['batch_box_preds'].shape.__len__() == 2
-                batch_mask = (batch_dict['batch_index'] == index)
+                batch_mask = (batch_dict['batch_index'] == index) #  batch_mask==0 ？？？？？？？？？？？？/
             else:
                 assert batch_dict['batch_box_preds'].shape.__len__() == 3
                 batch_mask = index
 
-            box_preds = batch_dict['batch_box_preds'][batch_mask]
+            box_preds = batch_dict['batch_box_preds'][batch_mask] # 边框的预测
             src_box_preds = box_preds
 
             if not isinstance(batch_dict['batch_cls_preds'], list):
-                cls_preds = batch_dict['batch_cls_preds'][batch_mask]
+                cls_preds = batch_dict['batch_cls_preds'][batch_mask] # 分类的预测================
 
                 src_cls_preds = cls_preds
                 assert cls_preds.shape[1] in [1, self.num_class]
 
-                if not batch_dict['cls_preds_normalized']:
+                if not batch_dict['cls_preds_normalized']:  #Flase 如果没有归一化，选择sigmoid进行归一化
                     cls_preds = torch.sigmoid(cls_preds)
             else:
                 cls_preds = [x[batch_mask] for x in batch_dict['batch_cls_preds']]
@@ -211,7 +212,7 @@ class Detector3DTemplate(nn.Module):
                 if not batch_dict['cls_preds_normalized']:
                     cls_preds = [torch.sigmoid(x) for x in cls_preds]
 
-            if post_process_cfg.NMS_CONFIG.MULTI_CLASSES_NMS:
+            if post_process_cfg.NMS_CONFIG.MULTI_CLASSES_NMS: # False | NMS配置-=MULTI_CLASSES_NMS: False  # 多类NMS
                 if not isinstance(cls_preds, list):
                     cls_preds = [cls_preds]
                     multihead_label_mapping = [torch.arange(1, self.num_class, device=cls_preds[0].device)]
@@ -239,47 +240,64 @@ class Detector3DTemplate(nn.Module):
                 final_boxes = torch.cat(pred_boxes, dim=0)
             else:
                 cls_preds, label_preds = torch.max(cls_preds, dim=-1)
-                if batch_dict.get('has_class_labels', False):
+                '''
+                    函数会返回两个tensor，
+                    第一个tensor是每行的最大值，softmax的输出中最大的是1，所以第一个tensor是全1的tensor；
+                    第二个tensor是每行最大值的索引。
+                '''
+                if batch_dict.get('has_class_labels', False):  # 如果没有class标签的话，预测标签为roi_labels的索引
                     label_key = 'roi_labels' if 'roi_labels' in batch_dict else 'batch_pred_labels'
                     label_preds = batch_dict[label_key][index]
-                else:
+                else:  # 如果没有class标签的话，预测索引+1（下一个循环）
                     label_preds = label_preds + 1
-                selected, selected_scores = model_nms_utils.class_agnostic_nms(
-                    box_scores=cls_preds, box_preds=box_preds,
-                    nms_config=post_process_cfg.NMS_CONFIG,
-                    score_thresh=post_process_cfg.SCORE_THRESH
+                selected, selected_scores = model_nms_utils.class_agnostic_nms(  # 非极大值抑制   ==========用到了两个关键函数分别是class_agnostic_nms和generate_recall_record=============
+                    box_scores=cls_preds, box_preds=box_preds, # 分类的预测价值，边框的预测价值
+                    nms_config=post_process_cfg.NMS_CONFIG,  #配置参数
+                    score_thresh=post_process_cfg.SCORE_THRESH  #阈值
                 )
 
-                if post_process_cfg.OUTPUT_RAW_SCORE:
-                    max_cls_preds, _ = torch.max(src_cls_preds, dim=-1)
+                if post_process_cfg.OUTPUT_RAW_SCORE: # OUTPUT_RAW_SCORE: False  输出原始分数
+                    max_cls_preds, _ = torch.max(src_cls_preds, dim=-1)  # 预测值的最大值 分类
                     selected_scores = max_cls_preds[selected]
 
-                final_scores = selected_scores
-                final_labels = label_preds[selected]
-                final_boxes = box_preds[selected]
+                final_scores = selected_scores  #最终分数
+                final_labels = label_preds[selected]  #最终标签
+                final_boxes = box_preds[selected]  #最终预测框
 
-            recall_dict = self.generate_recall_record(
+            recall_dict = self.generate_recall_record(  # =====================其中用到了两个关键函数分别是class_agnostic_nms和generate_recall_record============================
                 box_preds=final_boxes if 'rois' not in batch_dict else src_box_preds,
                 recall_dict=recall_dict, batch_index=index, data_dict=batch_dict,
-                thresh_list=post_process_cfg.RECALL_THRESH_LIST
+                thresh_list=post_process_cfg.RECALL_THRESH_LIST #  [0.3, 0.5, 0.7] #recall阈值列表
             )
+            '''
+            if 'rois' not in batch_dict: #如果rois不在数据中
+                box_preds=final_boxes  #就选取之前得到的最终预测框
+            else: #如果rois本来就在数据中
+                box_preds=src_box_preds, #就选取数据中的结果batch_dict['batch_box_preds']
+            '''
 
-            record_dict = {
+            record_dict = { #Recall 是用来计算被正确识别出来的个数与测试集中所有个数的比值
                 'pred_boxes': final_boxes,
                 'pred_scores': final_scores,
                 'pred_labels': final_labels
             }
-            pred_dicts.append(record_dict)
+            pred_dicts.append(record_dict) # 
 
-        return pred_dicts, recall_dict
+        return pred_dicts, recall_dict # 返回
 
     @staticmethod
-    def generate_recall_record(box_preds, recall_dict, batch_index, data_dict=None, thresh_list=None):
+    def generate_recall_record(box_preds, recall_dict, batch_index, data_dict=None, thresh_list=None): ####
         if 'gt_boxes' not in data_dict:
             return recall_dict
 
-        rois = data_dict['rois'][batch_index] if 'rois' in data_dict else None
-        gt_boxes = data_dict['gt_boxes'][batch_index]
+        rois = data_dict['rois'][batch_index] if 'rois' in data_dict else None # #region of interest感兴趣区
+        '''
+        if 'rois' in data_dict: #如果rois在数据中
+            rois = data_dict['rois'][batch_index] #就索引到数据中的rois
+        else: #否则=None
+            rois = None
+        '''
+        gt_boxes = data_dict['gt_boxes'][batch_index] # gt_boxes是data中gt的索引
 
         if recall_dict.__len__() == 0:
             recall_dict = {'gt': 0}
