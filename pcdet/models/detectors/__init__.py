@@ -7,8 +7,8 @@ Date: 2021-05-02 23:48:58
 LastEditTime: 2021-06-19 21:35:27
 FilePath: /PCDet/pcdet/models/detectors/__init__.py
 '''
-from .detector3d_template import Detector3DTemplate #  class Detector3DTemplate(nn.Module):
-from .PartA2_net import PartA2Net
+from .detector3d_template import Detector3DTemplate #  对应类：class Detector3DTemplate(nn.Module):
+from .PartA2_net import PartA2Net  # PartA2_net.py文件对应的类 ： class PartA2Net(Detector3DTemplate):
 from .point_rcnn import PointRCNN
 from .pointpillar import PointPillar
 from .pv_rcnn import PVRCNN

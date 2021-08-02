@@ -93,7 +93,7 @@ def main():
 
     # 2 调用的这些包就是pcdet/models/detectors下的某个py文件，# class PVRCNN(Detector3DTemplate):
     model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=demo_dataset) #  # model_cfg.NAME:   'PVRCNN'      class PVRCNN(Detector3DTemplate):
-    # ！！！！model 对应  pcdet/models/detectors/pv_rcnn.py  对应参数在pcdet/models/detectors/__init__.py
+    # model是实例化的class类！！！！model 对应  pcdet/models/detectors/pv_rcnn.py  对应参数在pcdet/models/detectors/__init__.py
     # 3 参数加载(.pth文件) 举例:'../output/kitti_models/pointpillar/default/ckpt/checkpoint_epoch_1.pth'
     model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True) 
     # cuda( ) 和 eval( ) 都是数据处理
@@ -109,7 +109,7 @@ def main():
             # 4. collate_batch
             data_dict = demo_dataset.collate_batch([data_dict]) # 外面加了一个[] 来源：pcdet/datasets/dataset.py        def collate_batch(batch_list, _unused=False):
             load_data_to_gpu(data_dict) # 传递数据给gpu的
-            pred_dicts, _ = model.forward(data_dict) # # class PVRCNN(Detector3DTemplate):！！！！！  在神经网络中向前传递数据data_dict，得到预测数据pred_dicts     定位到forward，因为是PVRCNN类下的函数，先看__init__  /home/hcq/pointcloud/PCDet/pcdet/models/detectors/pv_rcnn.py
+            pred_dicts, _ = model.forward(data_dict) # # data_dict: {dict: 6}  class PVRCNN(Detector3DTemplate):！！！！！  在神经网络中向前传递数据data_dict，得到预测数据pred_dicts     定位到forward，因为是PVRCNN类下的函数，先看__init__  /home/hcq/pointcloud/PCDet/pcdet/models/detectors/pv_rcnn.py
             # 可视化V
             # V.draw_scenes(
             #     points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],

@@ -20,11 +20,11 @@ from .detector3d_template import Detector3DTemplate
 class PVRCNN(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset): # 初始化参数
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
-        self.module_list = self.build_networks() # ===>>>>这里的build_networks是继承的Detector3DTemplate中的函数  def build_networks(self):
+        self.module_list = self.build_networks() # ===>>>>这里的build_networks是继承的Detector3DTemplate中的函数  def build_networks(self):--> return model_info_dict['module_list'] # 返回
     # 定位到forward，在神经网络中向前传递数据data_dict，得到预测数据pred_dicts
     def forward(self, batch_dict):  #  batch_dict:  {dict: 25} ======其他位置会引用，by ： 【demo.py】pred_dicts, _ = model.forward(data_dict) 
-        for cur_module in self.module_list:  #在__init__中
-            batch_dict = cur_module(batch_dict)
+        for cur_module in self.module_list:  #在__init__中 module_list：{list:8}
+            batch_dict = cur_module(batch_dict) # 
 
         if self.training: # #情况1：如果用于训练
             loss, tb_dict, disp_dict = self.get_training_loss() #得到训练loss   关键函数1=====================local： 下面line40=====================================
