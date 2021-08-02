@@ -1,21 +1,21 @@
 import mayavi.mlab as mlab
 import numpy as np
 import torch
-
+# 颜色值 class_names=['Car', 'Pedestrian', 'Cyclist'],
 box_colormap = [
-    [1, 1, 1],
-    [0, 1, 0],
-    [0, 1, 1],
-    [1, 1, 0],
+    [1, 1, 1], # 白Car
+    [0, 1, 0], # 绿 Pedestrian
+    [0, 1, 1], # 青 Cyclist
+    [1, 1, 0], # 黄 
 ]
 
 
 def check_numpy_to_torch(x):
     if isinstance(x, np.ndarray):
         return torch.from_numpy(x).float(), True
-    return x, False
+    return x, False # 不是numpy
 
-
+# 绕z轴旋转
 def rotate_points_along_z(points, angle):
     """
     Args:
@@ -40,7 +40,7 @@ def rotate_points_along_z(points, angle):
     points_rot = torch.cat((points_rot, points[:, :, 3:]), dim=-1)
     return points_rot.numpy() if is_numpy else points_rot
 
-
+#   可视化框boxes 转corner角（如下图
 def boxes_to_corners_3d(boxes3d):
     """
         7 -------- 4
@@ -51,24 +51,24 @@ def boxes_to_corners_3d(boxes3d):
       |/         |/
       2 -------- 1
     Args:
-        boxes3d:  (N, 7) [x, y, z, dx, dy, dz, heading], (x, y, z) is the box center
+        boxes3d:  (N, 7) [x, y, z, dx, dy, dz, heading], 其中(x, y, z) is the box center
 
     Returns:
     """
     boxes3d, is_numpy = check_numpy_to_torch(boxes3d)
 
-    template = boxes3d.new_tensor((
+    template = boxes3d.new_tensor(( # new_tensor()可以将源张量中的数据复制到目标张量（数据不共享），同时提供了更细致的属性控制：
         [1, 1, -1], [1, -1, -1], [-1, -1, -1], [-1, 1, -1],
         [1, 1, 1], [1, -1, 1], [-1, -1, 1], [-1, 1, 1],
     )) / 2
 
-    corners3d = boxes3d[:, None, 3:6].repeat(1, 8, 1) * template[None, :, :]
-    corners3d = rotate_points_along_z(corners3d.view(-1, 8, 3), boxes3d[:, 6]).view(-1, 8, 3)
+    corners3d = boxes3d[:, None, 3:6].repeat(1, 8, 1) * template[None, :, :] # dx, dy, dz
+    corners3d = rotate_points_along_z(corners3d.view(-1, 8, 3), boxes3d[:, 6]).view(-1, 8, 3) # 绕z轴旋转
     corners3d += boxes3d[:, None, 0:3]
 
-    return corners3d.numpy() if is_numpy else corners3d
+    return corners3d.numpy() if is_numpy else corners3d # 返回值
 
-
+# 可视化原始点云
 def visualize_pts(pts, fig=None, bgcolor=(0, 0, 0), fgcolor=(1.0, 1.0, 1.0),
                   show_intensity=False, size=(600, 600), draw_origin=True):
     if not isinstance(pts, np.ndarray):
@@ -76,13 +76,13 @@ def visualize_pts(pts, fig=None, bgcolor=(0, 0, 0), fgcolor=(1.0, 1.0, 1.0),
     if fig is None:
         fig = mlab.figure(figure=None, bgcolor=bgcolor, fgcolor=fgcolor, engine=None, size=size)
 
-    if show_intensity:
+    if show_intensity: # 有intensity intensity=False
         G = mlab.points3d(pts[:, 0], pts[:, 1], pts[:, 2], pts[:, 3], mode='point',
                           colormap='gnuplot', scale_factor=1, figure=fig)
-    else:
+    else:  # 执行
         G = mlab.points3d(pts[:, 0], pts[:, 1], pts[:, 2], mode='point',
                           colormap='gnuplot', scale_factor=1, figure=fig)
-    if draw_origin:
+    if draw_origin: # draw_origin=True
         mlab.points3d(0, 0, 0, color=(1, 1, 1), mode='cube', scale_factor=0.2)
         mlab.plot3d([0, 3], [0, 0], [0, 0], color=(0, 0, 1), tube_radius=0.1)
         mlab.plot3d([0, 0], [0, 3], [0, 0], color=(0, 1, 0), tube_radius=0.1)
@@ -138,57 +138,58 @@ def draw_multi_grid_range(fig, grid_size=20, bv_range=(-60, -60, 60, 60)):
 
     return fig
 
-
+# 总入口
 def draw_scenes(points, gt_boxes=None, ref_boxes=None, ref_scores=None, ref_labels=None):
+    # main()调用, 参数(数据点,真值框,参考框,参考分数,参考标签)
     if not isinstance(points, np.ndarray):
-        points = points.cpu().numpy()
+        points = points.cpu().numpy() # 转成numpy
     if ref_boxes is not None and not isinstance(ref_boxes, np.ndarray):
-        ref_boxes = ref_boxes.cpu().numpy()
+        ref_boxes = ref_boxes.cpu().numpy() #  (48, 7)
     if gt_boxes is not None and not isinstance(gt_boxes, np.ndarray):
         gt_boxes = gt_boxes.cpu().numpy()
     if ref_scores is not None and not isinstance(ref_scores, np.ndarray):
-        ref_scores = ref_scores.cpu().numpy()
+        ref_scores = ref_scores.cpu().numpy() # (48, ) [0.49911454 0.49911413 0.4991139  0.49905694 0.49903613 0.49903265, 0.4990317  0.4989867  0.49858597 0.49786684 0.49771014 0.49692672, 0.4964826  0.4958135  0.49569643 0.49475363 0.49421775 0.49417076, 0.49404025 0.4939495  0.49386203 0.49385655 0.4938008  0.49372327, 0.4935612  0.49319816 0.4927711  0.49231872 0.49230573 0.49136138, 0.49124387 0.49102086 0.49087006 0.4899251  0.48964763 0.48958036, 0.48897126 0.4889216  0.4870338  0.4870207  0.48593548 0.48580304, 0.48549423 0.48473284 0.483544   0.4826078  0.48241958 0.4822757 ]
     if ref_labels is not None and not isinstance(ref_labels, np.ndarray):
-        ref_labels = ref_labels.cpu().numpy()
+        ref_labels = ref_labels.cpu().numpy() #[1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1, 1 1 1 1 1 1 1 1 1 1 1]
 
-    fig = visualize_pts(points)
-    fig = draw_multi_grid_range(fig, bv_range=(0, -40, 80, 40))
-    if gt_boxes is not None:
-        corners3d = boxes_to_corners_3d(gt_boxes)
+    fig = visualize_pts(points) # 可视化原始点云
+    fig = draw_multi_grid_range(fig, bv_range=(0, -40, 80, 40))  #绘制多重网格范围
+    if gt_boxes is not None: # 没有gt_boxes
+        corners3d = boxes_to_corners_3d(gt_boxes) # 可视化真值框boxes
         fig = draw_corners3d(corners3d, fig=fig, color=(0, 0, 1), max_num=100)
 
     if ref_boxes is not None and len(ref_boxes) > 0:
-        ref_corners3d = boxes_to_corners_3d(ref_boxes)
-        if ref_labels is None:
-            fig = draw_corners3d(ref_corners3d, fig=fig, color=(0, 1, 0), cls=ref_scores, max_num=100)
-        else:
+        ref_corners3d = boxes_to_corners_3d(ref_boxes) #  可视化参考框boxes
+        if ref_labels is None:  # 没有label，不运行
+            fig = draw_corners3d(ref_corners3d, fig=fig, color=(0, 1, 0), cls=ref_scores, max_num=100) # cls=ref_scores 显示得分scores
+        else: # 包含ref_labels  运行===========
             for k in range(ref_labels.min(), ref_labels.max() + 1):
-                cur_color = tuple(box_colormap[k % len(box_colormap)])
-                mask = (ref_labels == k)
+                cur_color = tuple(box_colormap[k % len(box_colormap)]) # label对应颜色 元组 tuple  (0,1,0)
+                mask = (ref_labels == k) # 颜色 (48, )  [ True  True  True  True  True  True  True  True  True  True  True  True,  True  True  True  True  True  True  True  True  True  True  True  True,  True  True  True  True  True  True  True  True  True  True  True  True,  True  True  True  True  True  True  True  True  True  True  True  True]
                 fig = draw_corners3d(ref_corners3d[mask], fig=fig, color=cur_color, cls=ref_scores[mask], max_num=100)
-    mlab.view(azimuth=-179, elevation=54.0, distance=104.0, roll=90.0)
+    mlab.view(azimuth=-179, elevation=54.0, distance=104.0, roll=90.0) # 
     return fig
 
-
+# 
 def draw_corners3d(corners3d, fig, color=(1, 1, 1), line_width=2, cls=None, tag='', max_num=500, tube_radius=None):
     """
     :param corners3d: (N, 8, 3)
     :param fig:
     :param color:
     :param line_width:
-    :param cls:
+    :param cls: #  cls=ref_scores 显示得分scores
     :param tag:
     :param max_num:
     :return:
     """
     import mayavi.mlab as mlab
     num = min(max_num, len(corners3d))
-    for n in range(num):
+    for n in range(num): # 遍历写文字
         b = corners3d[n]  # (8, 3)
 
         if cls is not None:
             if isinstance(cls, np.ndarray):
-                mlab.text3d(b[6, 0], b[6, 1], b[6, 2], '%.2f' % cls[n], scale=(0.3, 0.3, 0.3), color=color, figure=fig)
+                mlab.text3d(b[6, 0], b[6, 1], b[6, 2], '%.2f' % cls[n], scale=(0.3, 0.3, 0.3), color=color, figure=fig) #  (b[6, 0], b[6, 1], b[6, 2])x, y, and z  are the position of the origin of the text.
             else:
                 mlab.text3d(b[6, 0], b[6, 1], b[6, 2], '%s' % cls[n], scale=(0.3, 0.3, 0.3), color=color, figure=fig)
 
