@@ -5,11 +5,11 @@ import torch
 import tqdm
 from torch.nn.utils import clip_grad_norm_
 
-
+# 训练一个epoch
 def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, accumulated_iter, optim_cfg,
                     rank, tbar, total_it_each_epoch, dataloader_iter, tb_log=None, leave_pbar=False):
     # 找到表示训练和梯度优化等的关键函数
-    if total_it_each_epoch == len(train_loader):
+    if total_it_each_epoch == len(train_loader):  # accumulated_iter  total_it_each_epoch =3712/batch_size
         dataloader_iter = iter(train_loader)
 
     if rank == 0:
@@ -84,7 +84,7 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
                 cur_scheduler = lr_warmup_scheduler
             else:
                 cur_scheduler = lr_scheduler
-            accumulated_iter = train_one_epoch( # #训练一个epoch
+            accumulated_iter = train_one_epoch( # #训练一个epoch  def train_one_epoch(xxx,,xxx ，)
                 model, optimizer, train_loader, model_func,
                 lr_scheduler=cur_scheduler,
                 accumulated_iter=accumulated_iter, optim_cfg=optim_cfg,

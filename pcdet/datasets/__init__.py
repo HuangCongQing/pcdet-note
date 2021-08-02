@@ -4,14 +4,14 @@ from torch.utils.data import DistributedSampler as _DistributedSampler
 
 from pcdet.utils import common_utils
 
-from .dataset import DatasetTemplate
-from .kitti.kitti_dataset import KittiDataset
+from .dataset import DatasetTemplate  # dataset中的class名：class DatasetTemplate(torch_data.Dataset):
+from .kitti.kitti_dataset import KittiDataset  # kitti数据集处理  kitti_dataset.py中的 class KittiDataset(DatasetTemplate):
 from .nuscenes.nuscenes_dataset import NuScenesDataset
 from .waymo.waymo_dataset import WaymoDataset
 
 __all__ = {
     'DatasetTemplate': DatasetTemplate,
-    'KittiDataset': KittiDataset,
+    'KittiDataset': KittiDataset, # kitti_dataset.py
     'NuScenesDataset': NuScenesDataset,
     'WaymoDataset': WaymoDataset
 }
@@ -39,7 +39,7 @@ class DistributedSampler(_DistributedSampler):
 
         return iter(indices)
 
-
+# 数据处理入口（引用 train.py--->> train_set, train_loader, train_sampler = build_dataloader()
 def build_dataloader(dataset_cfg, class_names, batch_size, dist, root_path=None, workers=4,
                      logger=None, training=True, merge_all_iters_to_one_epoch=False, total_epochs=0):
 

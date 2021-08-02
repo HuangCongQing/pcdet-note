@@ -68,7 +68,7 @@ class KittiDataset(DatasetTemplate):
 
         #最后在日志信息中 添加 kitti数据集样本总个数
         if self.logger is not None:
-            self.logger.info('Total samples for KITTI dataset: %d' % (len(kitti_infos)))
+            self.logger.info('【kitti_dataset.py】Total samples(bin文件数量) for KITTI dataset: %d' % (len(kitti_infos)))
 
     def set_split(self, split):
         #参数赋值

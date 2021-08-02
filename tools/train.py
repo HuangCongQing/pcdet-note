@@ -14,8 +14,8 @@ from tensorboardX import SummaryWriter
 import sys
 sys.path.append('..')
 from pcdet.config import cfg, cfg_from_list, cfg_from_yaml_file, log_config_to_file
-from pcdet.datasets import build_dataloader
-from pcdet.models import build_network, model_fn_decorator
+from pcdet.datasets import build_dataloader # 数据 pcdet/datasets/__init__.py
+from pcdet.models import build_network, model_fn_decorator # 模型
 from pcdet.utils import common_utils
 from train_utils.optimization import build_optimizer, build_scheduler
 from train_utils.train_utils import train_model
@@ -81,8 +81,8 @@ def main():
     if args.fix_random_seed:
         common_utils.set_random_seed(666)
 
-    output_dir = cfg.ROOT_DIR / 'output' / cfg.EXP_GROUP_PATH / cfg.TAG / args.extra_tag
-    ckpt_dir = output_dir / 'ckpt'
+    output_dir = cfg.ROOT_DIR / 'output' / cfg.EXP_GROUP_PATH / cfg.TAG / args.extra_tag # 输出路径
+    ckpt_dir = output_dir / 'ckpt' # ckpt
     output_dir.mkdir(parents=True, exist_ok=True)
     ckpt_dir.mkdir(parents=True, exist_ok=True)
 
@@ -102,9 +102,10 @@ def main():
     if cfg.LOCAL_RANK == 0:
         os.system('cp %s %s' % (args.cfg_file, output_dir))
 
-    tb_log = SummaryWriter(log_dir=str(output_dir / 'tensorboard')) if cfg.LOCAL_RANK == 0 else None
+    tb_log = SummaryWriter(log_dir=str(output_dir / 'tensorboard')) if cfg.LOCAL_RANK == 0 else None # tensorboard
 
     # -----------------------create dataloader & network & optimizer---------------------------
+    # 数据集create dataloader
     train_set, train_loader, train_sampler = build_dataloader(
         dataset_cfg=cfg.DATA_CONFIG,
         class_names=cfg.CLASS_NAMES,
@@ -120,7 +121,7 @@ def main():
     if args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
     model.cuda()
-    # 优化器
+    # optimizer优化器
     optimizer = build_optimizer(model, cfg.OPTIMIZATION)
 
     # load checkpoint if it is possible
@@ -133,7 +134,7 @@ def main():
         it, start_epoch = model.load_params_with_optimizer(args.ckpt, to_cpu=dist, optimizer=optimizer, logger=logger)
         last_epoch = start_epoch + 1
     else:
-        ckpt_list = glob.glob(str(ckpt_dir / '*checkpoint_epoch_*.pth'))
+        ckpt_list = glob.glob(str(ckpt_dir / '*checkpoint_epoch_*.pth')) # 
         if len(ckpt_list) > 0:
             ckpt_list.sort(key=os.path.getmtime)
             it, start_epoch = model.load_params_with_optimizer(
@@ -150,24 +151,24 @@ def main():
         optimizer, total_iters_each_epoch=len(train_loader), total_epochs=args.epochs,
         last_epoch=last_epoch, optim_cfg=cfg.OPTIMIZATION
     )
-
+    # 上面都是初始化参数
     # -----------------------start training---------------------------
-    logger.info('**********************Start training %s/%s(%s)**********************'
+    logger.info('**********************【train.py】Start training %s/%s(%s)**********************'
                 % (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
     train_model( # train_model定位在头文件中的tools/train_utils/train_utils.py
-        model,
+        model,  # 模型
         optimizer,
-        train_loader,
+        train_loader,  # 数据
         model_func=model_fn_decorator(),
         lr_scheduler=lr_scheduler,
         optim_cfg=cfg.OPTIMIZATION,
         start_epoch=start_epoch,
-        total_epochs=args.epochs,
+        total_epochs=args.epochs, # epochs数量
         start_iter=it,
         rank=cfg.LOCAL_RANK,
         tb_log=tb_log,
         ckpt_save_dir=ckpt_dir,
-        train_sampler=train_sampler,
+        train_sampler=train_sampler, # 数据
         lr_warmup_scheduler=lr_warmup_scheduler,
         ckpt_save_interval=args.ckpt_save_interval,
         max_ckpt_save_num=args.max_ckpt_save_num,
