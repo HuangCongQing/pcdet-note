@@ -17,7 +17,7 @@ from pcdet.config import cfg, cfg_from_list, cfg_from_yaml_file, log_config_to_f
 from pcdet.datasets import build_dataloader # 数据 pcdet/datasets/__init__.py
 from pcdet.models import build_network, model_fn_decorator # 模型
 from pcdet.utils import common_utils
-from train_utils.optimization import build_optimizer, build_scheduler
+from train_utils.optimization import build_optimizer, build_scheduler # 优化器
 from train_utils.train_utils import train_model
 
 os.environ["CUDA_VISIBLE_DEVICES"] =  "5"
@@ -180,11 +180,11 @@ def main():
 
     logger.info('**********************Start evaluation %s/%s(%s)**********************' %
                 (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
-    test_set, test_loader, sampler = build_dataloader(
+    test_set, test_loader, sampler = build_dataloader( # 加载测试数据集
         dataset_cfg=cfg.DATA_CONFIG,
         class_names=cfg.CLASS_NAMES,
         batch_size=args.batch_size,
-        dist=dist_train, workers=args.workers, logger=logger, training=False
+        dist=dist_train, workers=args.workers, logger=logger, training=False # training是false
     )
     eval_output_dir = output_dir / 'eval' / 'eval_with_train'
     eval_output_dir.mkdir(parents=True, exist_ok=True)

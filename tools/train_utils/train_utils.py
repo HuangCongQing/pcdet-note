@@ -75,7 +75,8 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
             total_it_each_epoch = len(train_loader) // max(total_epochs, 1)
 
         dataloader_iter = iter(train_loader)
-        for cur_epoch in tbar:  # for key in epochs:
+        # 多少个epochs
+        for cur_epoch in tbar:  # for key in epochs:============================================================
             if train_sampler is not None:
                 train_sampler.set_epoch(cur_epoch)
 
@@ -84,7 +85,7 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
                 cur_scheduler = lr_warmup_scheduler
             else:
                 cur_scheduler = lr_scheduler
-            accumulated_iter = train_one_epoch( # #训练一个epoch  def train_one_epoch(xxx,,xxx ，)
+            accumulated_iter = train_one_epoch( # #训练一个epoch  def train_one_epoch(xxx,,xxx ，)===================================================
                 model, optimizer, train_loader, model_func,
                 lr_scheduler=cur_scheduler,
                 accumulated_iter=accumulated_iter, optim_cfg=optim_cfg,
@@ -94,7 +95,7 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
                 dataloader_iter=dataloader_iter
             )
 
-            # save trained model
+            # save trained model保存模型
             trained_epoch = cur_epoch + 1
             if trained_epoch % ckpt_save_interval == 0 and rank == 0:
 
