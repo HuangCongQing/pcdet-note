@@ -1,4 +1,4 @@
-DATASET: 'KittiDataset'
+DATASET: 'KittiDataset' # class KittiDataset(DatasetTemplate):(pcdet/datasets/kitti/kitti_dataset.py)
 DATA_PATH: '../data/kitti' # #数据路径
 
 #点云范围，根据实际自己的点云范围调整

@@ -53,7 +53,7 @@ class DataProcessor(object):
                 max_num_points=config.MAX_POINTS_PER_VOXEL,
                 max_voxels=config.MAX_NUMBER_OF_VOXELS[self.mode]
             )
-            grid_size = (self.point_cloud_range[3:6] - self.point_cloud_range[0:3]) / np.array(config.VOXEL_SIZE) # 网格数量
+            grid_size = (self.point_cloud_range[3:6] - self.point_cloud_range[0:3]) / np.array(config.VOXEL_SIZE)
             self.grid_size = np.round(grid_size).astype(np.int64)
             self.voxel_size = config.VOXEL_SIZE
             return partial(self.transform_points_to_voxels, voxel_generator=voxel_generator)
@@ -101,6 +101,7 @@ class DataProcessor(object):
             choice = np.arange(0, len(points), dtype=np.int32)
             if num_points > len(points):
                 extra_choice = np.random.choice(choice, num_points - len(points), replace=False)
+                # extra_choice = np.random.choice(choice, num_points - len(points), replace=True) # 个人数据集 ValueError: Cannot take a larger sample than population when 'replace=False'
                 choice = np.concatenate((choice, extra_choice), axis=0)
             np.random.shuffle(choice)
         data_dict['points'] = points[choice]

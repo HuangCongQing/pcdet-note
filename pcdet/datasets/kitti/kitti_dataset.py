@@ -1,3 +1,11 @@
+'''
+Author: https://blog.csdn.net/weixin_44128857/article/details/108516213
+Date: 2021-07-30 11:53:21
+LastEditTime: 2021-07-30 19:06:24
+LastEditors: Please set LastEditors
+Description: In User Settings Edit
+FilePath: /PCDet/pcdet/datasets/kitti/kitti_dataset.py
+'''
 import copy
 import pickle
 
@@ -8,7 +16,7 @@ from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 from ...utils import box_utils, calibration_kitti, common_utils, object3d_kitti
 from ..dataset import DatasetTemplate
 
-
+#定义kitti数据集的类
 class KittiDataset(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
         """
@@ -19,37 +27,51 @@ class KittiDataset(DatasetTemplate):
             training:
             logger:
         """
+        #初始化类，将参数赋值给 类的属性
         super().__init__(
             dataset_cfg=dataset_cfg, class_names=class_names, training=training, root_path=root_path, logger=logger
         )
+        #传递参数是 训练集train 还是验证集val
         self.split = self.dataset_cfg.DATA_SPLIT[self.mode]
+        #  root_path的路径是/data/kitti/
+        #kitti数据集一共三个文件夹“training”和“testing”、“ImageSets”
+        #如果是训练集train，将文件的路径指为训练集training ，否则为测试集testing
         self.root_split_path = self.root_path / ('training' if self.split != 'test' else 'testing')
 
+        #/data/kitti/ImageSets/下面一共三个文件：test.txt , train.txt ,val.txt
+        #选择其中的一个文件
         split_dir = self.root_path / 'ImageSets' / (self.split + '.txt')
+        #得到.txt文件里的序列号，组成列表sample_id_list
         self.sample_id_list = [x.strip() for x in open(split_dir).readlines()] if split_dir.exists() else None
 
+        #创建用于存放kitti信息的空列表
         self.kitti_infos = []
-        self.include_kitti_data(self.mode)
+        self.include_kitti_data(self.mode) # #调用函数，加载kitti数据，mode的值为：train 或者  test
 
     def include_kitti_data(self, mode):
-        if self.logger is not None:
+        if self.logger is not None: #  #如果日志信息存在，则加入'Loading KITTI dataset'的信息
             self.logger.info('Loading KITTI dataset')
+        #创建新列表，用于存放信息
         kitti_infos = []
 
         for info_path in self.dataset_cfg.INFO_PATH[mode]:
-            info_path = self.root_path / info_path
-            if not info_path.exists():
+            info_path = self.root_path / info_path #  # root_path的路径是/data/kitti/  #则 info_path：/data/kitti/kitti_infos_train.pkl之类的文件
+            if not info_path.exists(): #  #如果该文件不存在，跳出，继续下一个文件
                 continue
             with open(info_path, 'rb') as f:
+                #  pickle.load(f) 将该文件中的数据 解析为一个Python对象 infos，
+                # 并将该内容添加到kitti_infos 列表中
                 infos = pickle.load(f)
                 kitti_infos.extend(infos)
 
         self.kitti_infos.extend(kitti_infos)
 
+        #最后在日志信息中 添加 kitti数据集样本总个数
         if self.logger is not None:
             self.logger.info('Total samples for KITTI dataset: %d' % (len(kitti_infos)))
 
     def set_split(self, split):
+        #参数赋值
         super().__init__(
             dataset_cfg=self.dataset_cfg, class_names=self.class_names, training=self.training, root_path=self.root_path, logger=self.logger
         )
@@ -59,26 +81,32 @@ class KittiDataset(DatasetTemplate):
         split_dir = self.root_path / 'ImageSets' / (self.split + '.txt')
         self.sample_id_list = [x.strip() for x in open(split_dir).readlines()] if split_dir.exists() else None
 
+    #根据序列号，获取lidar信息
     def get_lidar(self, idx):
         lidar_file = self.root_split_path / 'velodyne' / ('%s.bin' % idx)
         assert lidar_file.exists()
         return np.fromfile(str(lidar_file), dtype=np.float32).reshape(-1, 4)
 
+    # 根据序列号，获取图像的信息
     def get_image_shape(self, idx):
         img_file = self.root_split_path / 'image_2' / ('%s.png' % idx)
         assert img_file.exists()
         return np.array(io.imread(img_file).shape[:2], dtype=np.int32)
-
+    
+    #根据序列号，获取标签的信息
     def get_label(self, idx):
         label_file = self.root_split_path / 'label_2' / ('%s.txt' % idx)
         assert label_file.exists()
         return object3d_kitti.get_objects_from_label(label_file)
 
+    #该函数是根据序列得到某一标定
     def get_calib(self, idx):
         calib_file = self.root_split_path / 'calib' / ('%s.txt' % idx)
         assert calib_file.exists()
         return calibration_kitti.Calibration(calib_file)
 
+    ## 如果有路面情况，调用该函数，获得路面的相关信息
+    #该文件没有路面情况，故不分析
     def get_road_plane(self, idx):
         plane_file = self.root_split_path / 'planes' / ('%s.txt' % idx)
         if not plane_file.exists():
@@ -97,6 +125,7 @@ class KittiDataset(DatasetTemplate):
         plane = plane / norm
         return plane
 
+    #定义静态方法
     @staticmethod
     def get_fov_flag(pts_rect, img_shape, calib):
         """
@@ -116,6 +145,7 @@ class KittiDataset(DatasetTemplate):
 
         return pts_valid_flag
 
+    # ######   获取信息##############
     def get_infos(self, num_workers=4, has_label=True, count_inside_pts=True, sample_id_list=None):
         import concurrent.futures as futures
 
@@ -190,6 +220,10 @@ class KittiDataset(DatasetTemplate):
             infos = executor.map(process_single_scene, sample_id_list)
         return list(infos)
 
+    #建立地面真相数据库：翻译的意思是地面实况，放到机器学习里面，
+    # 再抽象点可以把它理解为真值、真实的有效值或者是标准的答案
+    # 用trainfile产生groundtruth_database，
+    # 意思就是只保存训练数据中的gt_box及其包围的点的信息，用于数据增强
     def create_groundtruth_database(self, info_path=None, used_classes=None, split='train'):
         import torch
 
@@ -247,17 +281,19 @@ class KittiDataset(DatasetTemplate):
         """
         Args:
             batch_dict:
-                frame_id:
-            pred_dicts: list of pred_dicts
-                pred_boxes: (N, 7), Tensor
-                pred_scores: (N), Tensor
-                pred_labels: (N), Tensor
+                frame_id: 帧号
+            pred_dicts: list of pred_dicts  预测后得到的列表
+                pred_boxes: (N, 7), Tensor   预测的框，包含七个信息
+                pred_scores: (N), Tensor      预测得分
+                pred_labels: (N), Tensor        预测的标签
             class_names:
             output_path:
 
         Returns:
 
         """
+        #获取预测后的模板字典 ret_dict，全部定义为全零的向量
+        #参数num_samples 是这一帧里面的物体个数
         def get_template_prediction(num_samples):
             ret_dict = {
                 'name': np.zeros(num_samples), 'truncated': np.zeros(num_samples),
@@ -268,6 +304,10 @@ class KittiDataset(DatasetTemplate):
             }
             return ret_dict
 
+        #生成一个帧的预测字典
+        #参数：box_dict是预测的结果，pred_dicts: list of pred_dicts  预测后得到的列表
+        # 在 self.generate_prediction_dicts()中接收模型预测的在统一坐标系下表示的3D检测框，
+        # 并转回自己所需格式即可。
         def generate_single_sample_dict(batch_index, box_dict):
             pred_scores = box_dict['pred_scores'].cpu().numpy()
             pred_boxes = box_dict['pred_boxes'].cpu().numpy()
@@ -318,7 +358,7 @@ class KittiDataset(DatasetTemplate):
                                  single_pred_dict['score'][idx]), file=f)
 
         return annos
-
+    # 评价指标
     def evaluation(self, det_annos, class_names, **kwargs):
         if 'annos' not in self.kitti_infos[0].keys():
             return None, {}

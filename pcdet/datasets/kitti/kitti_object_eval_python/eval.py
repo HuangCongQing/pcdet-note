@@ -444,7 +444,7 @@ def _prepare_data(gt_annos, dt_annos, current_class, difficulty):
     return (gt_datas_list, dt_datas_list, ignored_gts, ignored_dets, dontcares,
             total_dc_num, total_num_valid_gt)
 
-
+# 在eval_class定义中调用calculate_iou_partly之后的位置输出overlap的计算结果
 def eval_class(gt_annos,
                dt_annos,
                current_classes,
