@@ -1,7 +1,7 @@
 '''
 Author: https://blog.csdn.net/weixin_44128857/article/details/108516213
 Date: 2021-07-30 11:53:21
-LastEditTime: 2021-08-03 12:39:03
+LastEditTime: 2021-08-03 19:58:23
 LastEditors: Please set LastEditors
 Description: In User Settings Edit
 FilePath: /PCDet/pcdet/datasets/kitti/kitti_dataset.py
@@ -32,6 +32,12 @@ class KittiDataset(DatasetTemplate):
             dataset_cfg=dataset_cfg, class_names=class_names, training=training, root_path=root_path, logger=logger
         )
         #传递参数是 训练集train 还是验证集val
+        """ 
+            DATA_SPLIT: {
+                'train': train,
+                'test': val # 测试集 依据 data/kitti/ImageSets/val.txt
+            }
+         """
         self.split = self.dataset_cfg.DATA_SPLIT[self.mode]
         #  root_path的路径是/data/kitti/
         #kitti数据集一共三个文件夹“training”和“testing”、“ImageSets”
@@ -177,7 +183,7 @@ class KittiDataset(DatasetTemplate):
         #处理单帧数据
         def process_single_scene(sample_idx):
              #  self.split 的实际值是 train训练集 or val验证集
-            print('%s sample_idx: %s' % (self.split, sample_idx))
+            print('%s sample_idx: %s' % (self.split, sample_idx)) # 
             info = {}
             pc_info = {'num_features': 4, 'lidar_idx': sample_idx}
             #将目前的特征、序列加入info字典里
@@ -507,7 +513,7 @@ class KittiDataset(DatasetTemplate):
         eval_det_annos = copy.deepcopy(det_annos)
         # 一个info 表示一帧数据的信息，则下面是把所有数据的annos属性取出来，进行copy
         eval_gt_annos = [copy.deepcopy(info['annos']) for info in self.kitti_infos]
-        #下面的函数相当于做了进一步的运算，然后返回结果
+        #下面的函数相当于做了进一步的运算，然后返回结果===========================================
         ap_result_str, ap_dict = kitti_eval.get_official_eval_result(eval_gt_annos, eval_det_annos, class_names)
 
         return ap_result_str, ap_dict
@@ -612,7 +618,7 @@ def create_kitti_infos(dataset_cfg, class_names, data_path, save_path, workers=4
     trainval_filename = save_path / 'kitti_infos_trainval.pkl'
     test_filename = save_path / 'kitti_infos_test.pkl'
 
-    print('---------------Start to generate data infos---------------')
+    print('---------------【kitti_dataset.py】Start to generate data infos---------------')
     # 训练集
     dataset.set_split(train_split) 
     #执行完上一步，得到train相关的保存文件，以及sample_id_list的值为train.txt文件下的数字
@@ -620,14 +626,14 @@ def create_kitti_infos(dataset_cfg, class_names, data_path, save_path, workers=4
     kitti_infos_train = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True) # get_infos 获取处理后的点云数据
     with open(train_filename, 'wb') as f:
         pickle.dump(kitti_infos_train, f)
-    print('Kitti info train file is saved to %s' % train_filename)
-    # 验证集
+    print('Kitti info train file is saved to %s' % train_filename) # kitti_infos_train.pkl
+    # 验证集val.txt
     #开始对验证集的数据进行信息统计并保存
     dataset.set_split(val_split)
     kitti_infos_val = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True) # # get_infos 获取处理后的点云数据
     with open(val_filename, 'wb') as f:
         pickle.dump(kitti_infos_val, f)
-    print('Kitti info val file is saved to %s' % val_filename)
+    print('Kitti info val file is saved to %s' % val_filename) # kitti_infos_val.pkl
 
     #把训练集和验证集的信息 合并写到一个文件里
     with open(trainval_filename, 'wb') as f:

@@ -1,3 +1,12 @@
+'''
+Description: 预测 https://blog.csdn.net/weixin_44579633/article/details/108083331
+Author: HCQ
+Company(School): UCAS
+Email: 1756260160@qq.com
+Date: 2021-08-03 09:26:49
+LastEditTime: 2021-08-03 18:33:31
+FilePath: /PCDet/pcdet/datasets/kitti/kitti_object_eval_python/eval.py
+'''
 import io as sysio
 
 import numba
@@ -413,7 +422,7 @@ def calculate_iou_partly(gt_annos, dt_annos, metric, num_parts=50):
 
     return overlaps, parted_overlaps, total_gt_num, total_dt_num
 
-
+# todoz注释
 def _prepare_data(gt_annos, dt_annos, current_class, difficulty):
     gt_datas_list = []
     dt_datas_list = []
@@ -447,13 +456,17 @@ def _prepare_data(gt_annos, dt_annos, current_class, difficulty):
 # 在eval_class定义中调用calculate_iou_partly之后的位置输出overlap的计算结果
 def eval_class(gt_annos,
                dt_annos,
-               current_classes,
-               difficultys,
-               metric,
-               min_overlaps,
+               current_classes,  
+               difficultys,  # tuple类型， (0, 1, 2)
+               metric,    # 0 (bbox), 1 (bev)或 2 (3d)
+               min_overlaps, # (2, 3, num_classes) 其中:
+                             # 2 表示阈值为中等或者容易
+                             # 3 表示表示不同的指标 (bbox, bev, 3d), 
+                             # num_classes用于每个类的阈值
                compute_aos=False,
                num_parts=100):
-    """Kitti eval. support 2d/bev/3d/aos eval. support 0.5:0.05:0.95 coco AP.
+    """这里是官方注释的各个参量的意义
+    Kitti eval. support 2d/bev/3d/aos eval. support 0.5:0.05:0.95 coco AP.
     Args:
         gt_annos: dict, must from get_label_annos() in kitti_common.py
         dt_annos: dict, must from get_label_annos() in kitti_common.py
@@ -470,43 +483,58 @@ def eval_class(gt_annos,
     num_examples = len(gt_annos)
     split_parts = get_split_parts(num_examples, num_parts)
 
+    # # 计算iou，calculate_iou_partly函数解读代码参见链接  https://blog.csdn.net/weixin_44579633/article/details/108132842  ============================
     rets = calculate_iou_partly(dt_annos, gt_annos, metric, num_parts)
     overlaps, parted_overlaps, total_dt_num, total_gt_num = rets
     N_SAMPLE_PTS = 41
     num_minoverlap = len(min_overlaps)
     num_class = len(current_classes)
     num_difficulty = len(difficultys)
+    
+    # 初始化precision,recall,aos
     precision = np.zeros(
         [num_class, num_difficulty, num_minoverlap, N_SAMPLE_PTS])
     recall = np.zeros(
         [num_class, num_difficulty, num_minoverlap, N_SAMPLE_PTS])
     aos = np.zeros([num_class, num_difficulty, num_minoverlap, N_SAMPLE_PTS])
+
+    # # 每个类别
     for m, current_class in enumerate(current_classes):
+        # # 每个难度
         for l, difficulty in enumerate(difficultys):
+            # # _prepare_data函数解读代码参见   todo链接
             rets = _prepare_data(gt_annos, dt_annos, current_class, difficulty)
             (gt_datas_list, dt_datas_list, ignored_gts, ignored_dets,
              dontcares, total_dc_num, total_num_valid_gt) = rets
+            #  # 运行两次，首先进行中等难度的总体设置，然后进行简单设置。
             for k, min_overlap in enumerate(min_overlaps[:, metric, m]):
                 thresholdss = []
+                #  # 循环浏览数据集中的图像。因此一次只显示一张图片。
                 for i in range(len(gt_annos)):
+                    # compute_statistics_jit函数解读代码参见文末链接
                     rets = compute_statistics_jit(
-                        overlaps[i],
-                        gt_datas_list[i],
-                        dt_datas_list[i],
-                        ignored_gts[i],
-                        ignored_dets[i],
-                        dontcares[i],
-                        metric,
-                        min_overlap=min_overlap,
-                        thresh=0.0,
+                        overlaps[i],  # 单个图像的iou值b/n gt和dt
+                        gt_datas_list[i],  # N x 5阵列
+                        dt_datas_list[i],  # N x 6阵列
+                        ignored_gts[i], # 长度N数组，-1、0、1
+                        ignored_dets[i], # 长度N数组，-1、0、1
+                        dontcares[i], # 无关框数量x 4
+                        metric, # 0, 1, 或 2 (bbox, bev, 3d)
+                        min_overlap=min_overlap, # 浮动最小IOU阈值为正
+                        thresh=0.0, # 忽略得分低于此值的dt。
                         compute_fp=False)
                     tp, fp, fn, similarity, thresholds = rets
                     thresholdss += thresholds.tolist()
+                # 一维数组，记录匹配的dts分数
                 thresholdss = np.array(thresholdss)
                 thresholds = get_thresholds(thresholdss, total_num_valid_gt)
                 thresholds = np.array(thresholds)
+                # N_SAMPLE_PTS长度的一维数组，记录分数，递减，表示阈值
+
+                # 储存有关gt/dt框的信息（是否忽略，fn，tn，fp）     
                 pr = np.zeros([len(thresholds), 4])
                 idx = 0
+                # 我们将数据集分成多个部分并运行。
                 for j, num_part in enumerate(split_parts):
                     gt_datas_part = np.concatenate(
                         gt_datas_list[idx:idx + num_part], 0)
@@ -518,6 +546,7 @@ def eval_class(gt_annos,
                         ignored_dets[idx:idx + num_part], 0)
                     ignored_gts_part = np.concatenate(
                         ignored_gts[idx:idx + num_part], 0)
+                    # 再将各部分数据融合
                     fused_compute_statistics(
                         parted_overlaps[j],
                         pr,
@@ -534,11 +563,13 @@ def eval_class(gt_annos,
                         thresholds=thresholds,
                         compute_aos=compute_aos)
                     idx += num_part
+                #计算recall和precision
                 for i in range(len(thresholds)):
                     recall[m, l, k, i] = pr[i, 0] / (pr[i, 0] + pr[i, 2])
                     precision[m, l, k, i] = pr[i, 0] / (pr[i, 0] + pr[i, 1])
                     if compute_aos:
                         aos[m, l, k, i] = pr[i, 3] / (pr[i, 0] + pr[i, 1])
+                # 返回各自序列的最值
                 for i in range(len(thresholds)):
                     precision[m, l, k, i] = np.max(
                         precision[m, l, k, i:], axis=-1)
@@ -546,27 +577,27 @@ def eval_class(gt_annos,
                     if compute_aos:
                         aos[m, l, k, i] = np.max(aos[m, l, k, i:], axis=-1)
     ret_dict = {
-        "recall": recall,
-        "precision": precision,
+        "recall": recall,  # [num_class, num_difficulty, num_minoverlap, N_SAMPLE_PTS]
+        "precision": precision, # RECALLING RECALL的顺序，因此精度降低
         "orientation": aos,
     }
     return ret_dict
 
-
+#  # 计算mAP
 def get_mAP(prec):
     sums = 0
     for i in range(0, prec.shape[-1], 4):
         sums = sums + prec[..., i]
     return sums / 11 * 100
 
-
+# 计算mAP_R40
 def get_mAP_R40(prec):
     sums = 0
     for i in range(1, prec.shape[-1]):
         sums = sums + prec[..., i]
     return sums / 40 * 100
 
-
+# 打印函数
 def print_str(value, *arg, sstream=None):
     if sstream is None:
         sstream = sysio.StringIO()
@@ -575,8 +606,9 @@ def print_str(value, *arg, sstream=None):
     print(value, *arg, file=sstream)
     return sstream.getvalue()
 
-
-def do_eval(gt_annos,
+# do_eval是计算评估结果的重要函数，其定义如下
+# gt是真值，dt是测试结果
+def do_eval(gt_annos, 
             dt_annos,
             current_classes,
             min_overlaps,
@@ -584,7 +616,8 @@ def do_eval(gt_annos,
             PR_detail_dict=None):
     # min_overlaps: [num_minoverlap, metric, num_class]
     difficultys = [0, 1, 2]
-    ret = eval_class(gt_annos, dt_annos, current_classes, difficultys, 0,
+    # 1&2 计算mAP_bbox &mAP_aos（ dict of recall, precision and aos）
+    ret = eval_class(gt_annos, dt_annos, current_classes, difficultys, 0, #  def eval_class
                      min_overlaps, compute_aos)
     # ret: [num_class, num_diff, num_minoverlap, num_sample_points]
     mAP_bbox = get_mAP(ret["precision"])
@@ -600,8 +633,9 @@ def do_eval(gt_annos,
 
         if PR_detail_dict is not None:
             PR_detail_dict['aos'] = ret['orientation']
-
-    ret = eval_class(gt_annos, dt_annos, current_classes, difficultys, 1,
+            
+    # 3 计算mAP_bev
+    ret = eval_class(gt_annos, dt_annos, current_classes, difficultys, 1, # def  eval_class
                      min_overlaps)
     mAP_bev = get_mAP(ret["precision"])
     mAP_bev_R40 = get_mAP_R40(ret["precision"])
@@ -609,12 +643,14 @@ def do_eval(gt_annos,
     if PR_detail_dict is not None:
         PR_detail_dict['bev'] = ret['precision']
 
+    # 4 计算mAP_3d
     ret = eval_class(gt_annos, dt_annos, current_classes, difficultys, 2,
                      min_overlaps)
     mAP_3d = get_mAP(ret["precision"])
     mAP_3d_R40 = get_mAP_R40(ret["precision"])
     if PR_detail_dict is not None:
         PR_detail_dict['3d'] = ret['precision']
+        
     return mAP_bbox, mAP_bev, mAP_3d, mAP_aos, mAP_bbox_R40, mAP_bev_R40, mAP_3d_R40, mAP_aos_R40
 
 
@@ -635,7 +671,7 @@ def do_coco_style_eval(gt_annos, dt_annos, current_classes, overlap_ranges,
         mAP_aos = mAP_aos.mean(-1)
     return mAP_bbox, mAP_bev, mAP_3d, mAP_aos
 
-
+# 打印输出结果============================================================================================
 def get_official_eval_result(gt_annos, dt_annos, current_classes, PR_detail_dict=None):
     overlap_0_7 = np.array([[0.7, 0.5, 0.5, 0.7,
                              0.5, 0.7], [0.7, 0.5, 0.5, 0.7, 0.5, 0.7],
@@ -643,15 +679,19 @@ def get_official_eval_result(gt_annos, dt_annos, current_classes, PR_detail_dict
     overlap_0_5 = np.array([[0.7, 0.5, 0.5, 0.7,
                              0.5, 0.5], [0.5, 0.25, 0.25, 0.5, 0.25, 0.5],
                             [0.5, 0.25, 0.25, 0.5, 0.25, 0.5]])
+   
+    # 目的就是给不同的类别设置不同的阈值
+    # 每个类别输出2*2个结果，AP或AP_R40，overlap=0.7或0.5
     min_overlaps = np.stack([overlap_0_7, overlap_0_5], axis=0)  # [2, 3, 5]
     class_to_name = {
-        0: 'Car',
-        1: 'Pedestrian',
-        2: 'Cyclist',
-        3: 'Van',
-        4: 'Person_sitting',
-        5: 'Truck'
+        0: 'Car', 			#[[0.7,0.7,0.7],[0.5, 0.5, 0.5]]
+        1: 'Pedestrian',	#[[0.5,0.5,0.5],[0.5,0.25,0.25]]
+        2: 'Cyclist',		#[[0.5,0.5,0.5],[0.5,0.25,0.25]]
+        3: 'Van',			#[[0.7,0.7,0.7],[0.7, 0.5, 0.5]]
+        4: 'Person_sitting',#[[0.5,0.5,0.5],[0.5,0.25,0.25]]
+        5: 'Truck'			#[[0.7,0.7,0.7],[0.5, 0.5, 0.5]]
     }
+    
     name_to_class = {v: n for n, v in class_to_name.items()}
     if not isinstance(current_classes, (list, tuple)):
         current_classes = [current_classes]
@@ -666,16 +706,18 @@ def get_official_eval_result(gt_annos, dt_annos, current_classes, PR_detail_dict
     result = ''
     # check whether alpha is valid
     compute_aos = False
-    for anno in dt_annos:
+    for anno in dt_annos: # dt_annos 预测结果
         if anno['alpha'].shape[0] != 0:
             if anno['alpha'][0] != -10:
                 compute_aos = True
             break
+    # 计算结果的函数do_eval()（后面详细说）===================================================================
     mAPbbox, mAPbev, mAP3d, mAPaos, mAPbbox_R40, mAPbev_R40, mAP3d_R40, mAPaos_R40 = do_eval(
         gt_annos, dt_annos, current_classes, min_overlaps, compute_aos, PR_detail_dict=PR_detail_dict)
 
+    # 打印结果
     ret_dict = {}
-    for j, curcls in enumerate(current_classes):
+    for j, curcls in enumerate(current_classes): #每一种类
         # mAP threshold array: [num_minoverlap, metric, class]
         # mAP result: [num_class, num_diff, num_minoverlap]
         for i in range(min_overlaps.shape[0]):

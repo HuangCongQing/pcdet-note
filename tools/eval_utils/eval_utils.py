@@ -1,3 +1,12 @@
+'''
+Description: evaluation 预测配置
+Author: HCQ
+Company(School): UCAS
+Email: 1756260160@qq.com
+Date: 2021-07-20 20:34:59
+LastEditTime: 2021-08-03 17:57:08
+FilePath: /PCDet/tools/eval_utils/eval_utils.py
+'''
 import pickle
 import time
 
@@ -18,7 +27,7 @@ def statistics_info(cfg, ret_dict, metric, disp_dict):
     disp_dict['recall_%s' % str(min_thresh)] = \
         '(%d, %d) / %d' % (metric['recall_roi_%s' % str(min_thresh)], metric['recall_rcnn_%s' % str(min_thresh)], metric['gt_num'])
 
-
+# 预测一个epoch(test.py引用了)
 def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, save_to_file=False, result_dir=None):
     result_dir.mkdir(parents=True, exist_ok=True)
 
@@ -33,11 +42,11 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
         metric['recall_roi_%s' % str(cur_thresh)] = 0
         metric['recall_rcnn_%s' % str(cur_thresh)] = 0
 
-    dataset = dataloader.dataset
+    dataset = dataloader.dataset # 数据
     class_names = dataset.class_names
     det_annos = []
 
-    logger.info('*************** EPOCH %s EVALUATION *****************' % epoch_id)
+    logger.info('*************** EPOCH %s EVALUATION(测试没有epochs) *****************' % epoch_id) # 测试没有epochs,所以no_number
     if dist_test:
         num_gpus = torch.cuda.device_count()
         local_rank = cfg.LOCAL_RANK % num_gpus
@@ -46,7 +55,7 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
                 device_ids=[local_rank],
                 broadcast_buffers=False
         )
-    model.eval()
+    model.eval() # 在测试模型时都会在前面加上model.eval()
 
     if cfg.LOCAL_RANK == 0:
         progress_bar = tqdm.tqdm(total=len(dataloader), leave=True, desc='eval', dynamic_ncols=True)
@@ -107,6 +116,7 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
     with open(result_dir / 'result.pkl', 'wb') as f:
         pickle.dump(det_annos, f)
 
+    # tools/eval_utils/eval_utils.py
     result_str, result_dict = dataset.evaluation(
         det_annos, class_names,
         eval_metric=cfg.MODEL.POST_PROCESSING.EVAL_METRIC,
@@ -115,7 +125,7 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
 
     logger.info(result_str)
     ret_dict.update(result_dict)
-
+    # 保存评测结果
     logger.info('Result is save to %s' % result_dir)
     logger.info('****************Evaluation done.*****************')
     return ret_dict

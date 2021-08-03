@@ -13,7 +13,7 @@ from tensorboardX import SummaryWriter
 
 import sys
 sys.path.append('..')
-from eval_utils import eval_utils
+from eval_utils import eval_utils # 评估预测
 from pcdet.config import cfg, cfg_from_list, cfg_from_yaml_file, log_config_to_file
 from pcdet.datasets import build_dataloader
 from pcdet.models import build_network
@@ -60,7 +60,7 @@ def eval_single_ckpt(model, test_loader, args, eval_output_dir, logger, epoch_id
     model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=dist_test)
     model.cuda()
 
-    # start evaluation
+    # start evaluation 开始预测
     eval_utils.eval_one_epoch(
         cfg, model, test_loader, epoch_id, logger, dist_test=dist_test,
         result_dir=eval_output_dir, save_to_file=args.save_to_file
@@ -135,7 +135,7 @@ def repeat_eval_ckpt(model, test_loader, args, eval_output_dir, logger, ckpt_dir
 
 
 def main():
-    args, cfg = parse_config()
+    args, cfg = parse_config() # 加载参数
     if args.launcher == 'none':
         dist_test = False
         total_gpus = 1
@@ -192,9 +192,9 @@ def main():
 
     model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=test_set)
     with torch.no_grad():
-        if args.eval_all:
+        if args.eval_all: # default=False
             repeat_eval_ckpt(model, test_loader, args, eval_output_dir, logger, ckpt_dir, dist_test=dist_test)
-        else:
+        else: # 评估预测
             eval_single_ckpt(model, test_loader, args, eval_output_dir, logger, epoch_id, dist_test=dist_test)
 
 

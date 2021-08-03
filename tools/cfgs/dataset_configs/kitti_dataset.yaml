@@ -6,7 +6,7 @@ POINT_CLOUD_RANGE: [0, -40, -3, 70.4, 40, 1] #  顺序为[x_min, y_min, z_min, x
 
 DATA_SPLIT: {
     'train': train,
-    'test': val
+    'test': val # 测试集 依据 data/kitti/ImageSets/val.txt
 }
 
 #信息路径
