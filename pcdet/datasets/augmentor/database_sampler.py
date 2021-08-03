@@ -178,7 +178,7 @@ class DataBaseSampler(object):
 
                 sampled_boxes = np.stack([x['box3d_lidar'] for x in sampled_dict], axis=0).astype(np.float32)
 
-                if self.sampler_cfg.get('DATABASE_WITH_FAKELIDAR', False):
+                if self.sampler_cfg.get('DATABASE_WITH_FAKELIDAR', False): # 
                     sampled_boxes = box_utils.boxes3d_kitti_fakelidar_to_lidar(sampled_boxes)
 
                 iou1 = iou3d_nms_utils.boxes_bev_iou_cpu(sampled_boxes[:, 0:7], existed_boxes[:, 0:7])
