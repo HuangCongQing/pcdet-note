@@ -4,7 +4,7 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2021-05-02 23:48:58
-LastEditTime: 2021-08-02 15:17:59
+LastEditTime: 2021-08-03 15:29:22
 FilePath: /PCDet/tools/demo.py
 '''
 import argparse
@@ -18,7 +18,7 @@ import torch
 import sys
 sys.path.append('..')
 from pcdet.config import cfg, cfg_from_yaml_file
-from pcdet.datasets import DatasetTemplate
+from pcdet.datasets import DatasetTemplate # 数据模板
 from pcdet.models import build_network, load_data_to_gpu
 from pcdet.utils import common_utils
 from visual_utils import visualize_utils as V # 可视化函数库

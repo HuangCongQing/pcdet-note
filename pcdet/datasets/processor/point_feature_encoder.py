@@ -4,12 +4,12 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2021-05-02 23:48:58
-LastEditTime: 2021-06-14 16:11:26
+LastEditTime: 2021-08-03 15:51:43
 FilePath: /PCDet/pcdet/datasets/processor/point_feature_encoder.py
 '''
 import numpy as np
 
-
+# 
 class PointFeatureEncoder(object):
     def __init__(self, config, point_cloud_range=None):
         super().__init__()

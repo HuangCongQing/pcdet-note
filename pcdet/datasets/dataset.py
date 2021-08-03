@@ -5,31 +5,44 @@ import numpy as np
 import torch.utils.data as torch_data
 
 from ..utils import common_utils
-from .augmentor.data_augmentor import DataAugmentor
+from .augmentor.data_augmentor import DataAugmentor # 数据增强类
 from .processor.data_processor import DataProcessor
-from .processor.point_feature_encoder import PointFeatureEncoder
-
-
+from .processor.point_feature_encoder import PointFeatureEncoder # 
+# 参考：https://blog.csdn.net/weixin_41286628/article/details/115795114?spm=1001.2014.3001.5501
+""" DatasetTemplate类继承了torch的Dataset类 """
 class DatasetTemplate(torch_data.Dataset):
     def __init__(self, dataset_cfg=None, class_names=None, training=True, root_path=None, logger=None):
         super().__init__()
-        self.dataset_cfg = dataset_cfg
-        self.training = training
-        self.class_names = class_names
+        self.dataset_cfg = dataset_cfg # # 传入dataset的config字典
+        self.training = training # bool值
+        self.class_names = class_names # ['Car', 'Pedestrian', 'Cyclist']
         self.logger = logger
-        self.root_path = root_path if root_path is not None else Path(self.dataset_cfg.DATA_PATH) # bin文件路径
+        # 读取字典中DATA_PATH的值作为数据集的根目录，返回Path()对象
+        self.root_path = root_path if root_path is not None else Path(self.dataset_cfg.DATA_PATH) # bin文件路径 /home/hcq/huituo_server/data/kitti/training/velodyne/000008.bin
         self.logger = logger
         if self.dataset_cfg is None or class_names is None:
             return
 
-        self.point_cloud_range = np.array(self.dataset_cfg.POINT_CLOUD_RANGE, dtype=np.float32)
+        self.point_cloud_range = np.array(self.dataset_cfg.POINT_CLOUD_RANGE, dtype=np.float32) # POINT_CLOUD_RANGE: [0, -40, -3, 70.4, 40, 1] #  顺序为[x_min, y_min, z_min, x_max, y_max, z_max]
+        
+        # 初始化PointFeatureEncoder对象
         self.point_feature_encoder = PointFeatureEncoder(
             self.dataset_cfg.POINT_FEATURE_ENCODING,
             point_cloud_range=self.point_cloud_range
         )
+        """ 
+        kitti_dataset.yaml 中 POINT_FEATURE_ENCODING 如下
+			POINT_FEATURE_ENCODING: {
+    			encoding_type: absolute_coordinates_encoding,
+   				used_feature_list: ['x', 'y', 'z', 'intensity'],
+    			src_feature_list: ['x', 'y', 'z', 'intensity'],
+			}
+		"""
+        # # 训练模式下，定义数据增强类
         self.data_augmentor = DataAugmentor( # DataAugmentor
             self.root_path, self.dataset_cfg.DATA_AUGMENTOR, self.class_names, logger=self.logger
         ) if self.training else None
+        # # 定义数据处理类
         self.data_processor = DataProcessor(
             self.dataset_cfg.DATA_PROCESSOR, point_cloud_range=self.point_cloud_range, training=self.training
         )
@@ -39,23 +52,27 @@ class DatasetTemplate(torch_data.Dataset):
         self.total_epochs = 0
         self._merge_all_iters_to_one_epoch = False
 
-    @property
+    @property  # @property 可以让对象像访问属性一样区访问方法 self.mode 
     def mode(self):
-        return 'train' if self.training else 'test'
+        return 'train' if self.training else 'test'  # 训练还是测试
 
     def __getstate__(self):
         d = dict(self.__dict__)
         del d['logger']
         return d
 
+    # 更新成员变量的值
     def __setstate__(self, d):
         self.__dict__.update(d)
 
+    # 自定义数据集时需要实现该方法,接收来自模型的预测结果
     @staticmethod
     def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None):
         """
         To support a custom dataset, implement this function to receive the predicted results from the model, and then
         transform the unified normative coordinate to your required coordinate, and optionally save them to disk.
+        要支持自定义数据集，请实现此功能以接收来自模型的预测结果，
+        然后将统一的标准坐标转换为所需的坐标，然后选择将其保存到磁盘。
 
         Args:
             batch_dict: dict of original data from the dataloader
@@ -79,6 +96,7 @@ class DatasetTemplate(torch_data.Dataset):
     def __len__(self):
         raise NotImplementedError
 
+    # 自定义数据集时实现该方法，加载原始数据和labels，并将这些数据转换到统一的坐标下，调用self.prepare_data()来处理数据和送进模型
     def __getitem__(self, index):
         """
         To support a custom dataset, implement this function to load the raw data (and labels), then transform them to
@@ -114,27 +132,38 @@ class DatasetTemplate(torch_data.Dataset):
                 voxel_num_points: optional (num_voxels)
                 ...
         """
+        # # 训练模式下，对存在于class_name中的数据进行增强
         if self.training:
             assert 'gt_boxes' in data_dict, 'gt_boxes should be provided for training'
+            # 返回一个bool数组，记录自定义数据集中ground_truth_name列表在不在我们需要检测的类别列表self.class_name里面
+            # 比如kitti数据集中data_dict['gt_names']=['car','person','cyclist']，self.class_name='car',则gt_boxes_mask=[True, False, False]
             gt_boxes_mask = np.array([n in self.class_names for n in data_dict['gt_names']], dtype=np.bool_)
 
+            # 数据增强 传入字典参数，**data_dict是将data_dict里面的key-value对都拿出来
             data_dict = self.data_augmentor.forward(
                 data_dict={
-                    **data_dict,
+                    **data_dict, # **data_dict是将data_dict里面的key-value对都拿出来
                     'gt_boxes_mask': gt_boxes_mask
                 }
             )
 
+        # # 筛选需要检测的gt_boxes
         if data_dict.get('gt_boxes', None) is not None:
-            selected = common_utils.keep_arrays_by_name(data_dict['gt_names'], self.class_names)
+            #  下标: 返回data_dict['gt_names']中存在于class_name的下标， 也就是我们一开始指定要检测哪些类，只需要获得这些类的下标
+            selected = common_utils.keep_arrays_by_name(data_dict['gt_names'], self.class_names) # # ['Car', 'Pedestrian', 'Cyclist']
+            # # 根据selected，留下我们需要的gt_boxes和gt_names
             data_dict['gt_boxes'] = data_dict['gt_boxes'][selected]
             data_dict['gt_names'] = data_dict['gt_names'][selected]
+            # 将当帧数据的gt_names中的类别名称对应到class_names的下标
+            # 举个栗子，我们要检测的类别class_names = ['car','person']，对于当前帧，类别gt_names = ['car', 'person', 'car', 'car']，当前帧出现了3辆车，一辆单车，获取索引后，gt_classes = [1, 2, 1, 1]
             gt_classes = np.array([self.class_names.index(n) + 1 for n in data_dict['gt_names']], dtype=np.int32)
+            # 将类别index信息放到每个gt_boxes的最后
             gt_boxes = np.concatenate((data_dict['gt_boxes'], gt_classes.reshape(-1, 1).astype(np.float32)), axis=1)
             data_dict['gt_boxes'] = gt_boxes
 
+        # 使用点的哪些属性 比如x,y,z等
         data_dict = self.point_feature_encoder.forward(data_dict)
-
+        # 对点云进行预处理，包括移除超出point_cloud_range的点、 打乱点的顺序以及将点云转换为voxel
         data_dict = self.data_processor.forward(
             data_dict=data_dict
         )
@@ -150,6 +179,8 @@ class DatasetTemplate(torch_data.Dataset):
     @staticmethod #  将data_dict传入后命名为batch_list  返回值：  ====================================================
     def collate_batch(batch_list, _unused=False):
         data_dict = defaultdict(list) # defaultdict 表示在当字典里的key不存在但被查找时，返回的不是keyError而是一个默认值
+        
+        # 把batch里面的每个sample按照key-value合并
         for cur_sample in batch_list: # 遍历列表
             for key, val in cur_sample.items(): # 对字典6个参数进行遍历cur_sample 表示现在的样本值（current sample），也是DemoDataset类
                 data_dict[key].append(val) # 保存在新的字典里面

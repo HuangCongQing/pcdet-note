@@ -4,7 +4,7 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2021-08-03 12:41:16
-LastEditTime: 2021-08-03 12:44:36
+LastEditTime: 2021-08-03 16:08:33
 FilePath: /PCDet/pcdet/datasets/huituo/robosense/robosense_dataset.py
 '''
 import numpy as np
@@ -507,7 +507,7 @@ class RobosenseDataset(DatasetTemplate):
         print(class_names)
         '''
 
-        from ..kitti.kitti_object_eval_python import eval3 as kitti_eval
+        from ...kitti.kitti_object_eval_python import eval3 as kitti_eval
         
         #复制一下参数det_annos
         #copy.deepcopy()在元组和列表的嵌套上的效果是一样的，都是进行了深拷贝（递归的）
@@ -608,7 +608,7 @@ if __name__ == '__main__':
         dataset_cfg = EasyDict(yaml.load(open(sys.argv[2])))
         ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
         #ROOT_DIR是得到当前项目的根目录：/root/dataset/OpenPCDet
-        class_names= ['cone', 'pedestrain','bicycle','vehicle','big_vehicle']
+        class_names= ['cone', 'pedestrain','bicycle','vehicle','big_vehicle'] # 数据类别
         
         create_robosense_infos(
             dataset_cfg=dataset_cfg,
