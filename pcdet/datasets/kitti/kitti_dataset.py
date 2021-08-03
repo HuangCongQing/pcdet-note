@@ -1,7 +1,7 @@
 '''
 Author: https://blog.csdn.net/weixin_44128857/article/details/108516213
 Date: 2021-07-30 11:53:21
-LastEditTime: 2021-08-03 19:58:23
+LastEditTime: 2021-08-03 20:29:45
 LastEditors: Please set LastEditors
 Description: In User Settings Edit
 FilePath: /PCDet/pcdet/datasets/kitti/kitti_dataset.py
@@ -613,10 +613,10 @@ def create_kitti_infos(dataset_cfg, class_names, data_path, save_path, workers=4
     train_split, val_split = 'train', 'val'
 
     #定义文件的路径和名称
-    train_filename = save_path / ('kitti_infos_%s.pkl' % train_split)
-    val_filename = save_path / ('kitti_infos_%s.pkl' % val_split)
-    trainval_filename = save_path / 'kitti_infos_trainval.pkl'
-    test_filename = save_path / 'kitti_infos_test.pkl'
+    train_filename = save_path / ('kitti_infos_%s.pkl' % train_split) # 训练
+    val_filename = save_path / ('kitti_infos_%s.pkl' % val_split) # 验证
+    trainval_filename = save_path / 'kitti_infos_trainval.pkl' # trainval
+    test_filename = save_path / 'kitti_infos_test.pkl' # 测试
 
     print('---------------【kitti_dataset.py】Start to generate data infos---------------')
     # 训练集
@@ -626,19 +626,19 @@ def create_kitti_infos(dataset_cfg, class_names, data_path, save_path, workers=4
     kitti_infos_train = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True) # get_infos 获取处理后的点云数据
     with open(train_filename, 'wb') as f:
         pickle.dump(kitti_infos_train, f)
-    print('Kitti info train file is saved to %s' % train_filename) # kitti_infos_train.pkl
+    print('Kitti info train file is saved to %s' % train_filename) #保存 kitti_infos_train.pkl
     # 验证集val.txt
     #开始对验证集的数据进行信息统计并保存
     dataset.set_split(val_split)
     kitti_infos_val = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True) # # get_infos 获取处理后的点云数据
     with open(val_filename, 'wb') as f:
         pickle.dump(kitti_infos_val, f)
-    print('Kitti info val file is saved to %s' % val_filename) # kitti_infos_val.pkl
+    print('【验证集】Kitti info val file is saved to %s' % val_filename) # 保存kitti_infos_val.pkl
 
     #把训练集和验证集的信息 合并写到一个文件里
     with open(trainval_filename, 'wb') as f:
         pickle.dump(kitti_infos_train + kitti_infos_val, f)
-    print('Kitti info trainval file is saved to %s' % trainval_filename)
+    print('Kitti info trainval file is saved to %s' % trainval_filename) # 保存
     # 测试集 #写测试集的信息并保存
     dataset.set_split('test')
     kitti_infos_test = dataset.get_infos(num_workers=workers, has_label=False, count_inside_pts=False)
@@ -665,9 +665,9 @@ if __name__ == '__main__':
         #以下的命令和配置，只是为创建kitti信息做的
         dataset_cfg = EasyDict(yaml.load(open(sys.argv[2])))
         ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
-        create_kitti_infos( # 调用函数================
+        create_kitti_infos( # 调用函数 ，生成处理的数据集================
             dataset_cfg=dataset_cfg,
-            class_names=['Car', 'Pedestrian', 'Cyclist'],
+            class_names=['Car', 'Pedestrian', 'Cyclist'], # 修改分类数量
             data_path=ROOT_DIR / 'data' / 'kitti', # 数据路径
             save_path=ROOT_DIR / 'data' / 'kitti' # .pkl文件
         )
