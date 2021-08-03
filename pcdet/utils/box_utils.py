@@ -7,7 +7,7 @@ from scipy.spatial import Delaunay
 from ..ops.roiaware_pool3d import roiaware_pool3d_utils
 from . import common_utils
 
-
+# 
 def in_hull(p, hull):
     """
     :param p: (N, K) test points
@@ -24,7 +24,7 @@ def in_hull(p, hull):
 
     return flag
 
-
+# boxes 转corner角 和tools/visual_utils/visualize_utils.py中boxes_to_corners_3d函数一样
 def boxes_to_corners_3d(boxes3d):
     """
         7 -------- 4

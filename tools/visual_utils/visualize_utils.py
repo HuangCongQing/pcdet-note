@@ -40,7 +40,7 @@ def rotate_points_along_z(points, angle):
     points_rot = torch.cat((points_rot, points[:, :, 3:]), dim=-1)
     return points_rot.numpy() if is_numpy else points_rot
 
-#   可视化框boxes 转corner角（如下图
+#   可视化框boxes 转corner角（如下图  和pcdet/utils/box_utils.py中boxes_to_corners_3d函数一样
 def boxes_to_corners_3d(boxes3d):
     """
         7 -------- 4
