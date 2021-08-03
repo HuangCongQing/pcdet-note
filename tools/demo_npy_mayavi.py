@@ -4,7 +4,7 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2021-05-02 23:48:58
-LastEditTime: 2021-07-26 16:35:12
+LastEditTime: 2021-08-03 09:28:58
 FilePath: /PCDet/tools/demo_npy_mayavi.py
 '''
 import argparse
@@ -25,6 +25,7 @@ from visual_utils import visualize_utils as V
 
 data_dict = np.load("/home/hcq/下载/npy/data_dict.npy", allow_pickle=True)
 pred_boxes = np.load("/home/hcq/下载/npy/pred_boxes.npy", allow_pickle=True)
+pred_boxes = pred_boxes*100
 pred_labels = np.load("/home/hcq/下载/npy/pred_labels.npy", allow_pickle=True)
 pred_scores = np.load("/home/hcq/下载/npy/pred_scores.npy", allow_pickle=True)
 # data_dict = np.load("/home/hcq/下载/npy_epoch_40/data_dict.npy", allow_pickle=True)
