@@ -97,7 +97,7 @@ def main():
             data_dict = demo_dataset.collate_batch([data_dict])
             load_data_to_gpu(data_dict) # 传递数据给gpu的
             pred_dicts, _ = model.forward(data_dict) #  在神经网络中向前传递数据data_dict，得到预测数据pred_dicts     定位到forward，因为是PVRCNN类下的函数，先看__init__  /home/hcq/pointcloud/PCDet/pcdet/models/detectors/pv_rcnn.py
-            print("data_dict:", data_dict)
+            # print("data_dict:", data_dict)
             np.save("./npy/data_dict.npy",data_dict['points'][:, 1:].cpu().numpy())
             np.save("./npy/pred_boxes.npy",pred_dicts[0]['pred_boxes'].cpu().numpy())
             np.save("./npy/pred_scores.npy",pred_dicts[0]['pred_scores'].cpu().numpy())
@@ -108,6 +108,11 @@ def main():
             #     ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
             # )
             # mlab.show(stop=True)
+            # logger.info('Number of labels:{}'.format(len))
+            logger.info('Number of label:{}'.format(len(pred_dicts[0]['pred_labels'].cpu().numpy()))) #
+            labels = ['None', 'Car', 'Pedestrian', 'Cyclists']
+            for i in range(4):
+                logger.info('\t {}; {}'.format((i, labels[i]), (pred_dicts[0]['pred_labels'].cpu()==i).sum()))
 
     logger.info('Demo done.')
 
