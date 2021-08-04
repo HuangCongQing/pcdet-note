@@ -110,7 +110,7 @@ class DatasetTemplate(torch_data.Dataset):
 
         """
         raise NotImplementedError
-
+    # 处理gt数据=========================================================================
     def prepare_data(self, data_dict):
         """
         Args:
@@ -159,7 +159,15 @@ class DatasetTemplate(torch_data.Dataset):
             gt_classes = np.array([self.class_names.index(n) + 1 for n in data_dict['gt_names']], dtype=np.int32)
             # 将类别index信息放到每个gt_boxes的最后
             gt_boxes = np.concatenate((data_dict['gt_boxes'], gt_classes.reshape(-1, 1).astype(np.float32)), axis=1)
-            data_dict['gt_boxes'] = gt_boxes
+
+            # 处理GT box   缩小100倍数，归一化 转【0，1】
+            # gt_boxes[:,0] = gt_boxes[:,0]/100
+            # gt_boxes[:,0]  = (gt_boxes[:,0] - gt_boxes[:,0].min()) / ( gt_boxes[:,0].max()-gt_boxes[:,0].min())
+            # for i in range(len(gt_boxes[0])):
+            #     gt_boxes[:,i] = gt_boxes[:,i]/100
+            #     gt_boxes[:,i]  = (gt_boxes[:,i] - gt_boxes[:,i].min()) / ( gt_boxes[:,i].max()-gt_boxes[:,i].min())
+            
+            data_dict['gt_boxes'] = gt_boxes # 真值框  gt_boxes: optional, (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...]
 
         # 使用点的哪些属性 比如x,y,z等
         data_dict = self.point_feature_encoder.forward(data_dict)
