@@ -154,10 +154,12 @@ def draw_scenes(points, gt_boxes=None, ref_boxes=None, ref_scores=None, ref_labe
 
     fig = visualize_pts(points) # 可视化原始点云
     fig = draw_multi_grid_range(fig, bv_range=(0, -40, 80, 40))  #绘制多重网格范围
+    # GT 框
     if gt_boxes is not None: # 没有gt_boxes
         corners3d = boxes_to_corners_3d(gt_boxes) # 可视化真值框boxes
         fig = draw_corners3d(corners3d, fig=fig, color=(0, 0, 1), max_num=100)
 
+    # 预测框
     if ref_boxes is not None and len(ref_boxes) > 0:
         ref_corners3d = boxes_to_corners_3d(ref_boxes) #  可视化参考框boxes
         if ref_labels is None:  # 没有label，不运行

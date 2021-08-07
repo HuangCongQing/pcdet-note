@@ -119,7 +119,7 @@ class PillarVFE(VFETemplate):
         for pfn in self.pfn_layers:
             features = pfn(features)
         features = features.squeeze()
-        batch_dict['pillar_features'] = features
+        batch_dict['pillar_features'] = features #
         # print('batch_dict-------------------','\n',batch_dict)
         return batch_dict
 ''' 

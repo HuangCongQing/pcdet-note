@@ -4,7 +4,7 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2021-07-20 20:34:59
-LastEditTime: 2021-08-03 17:57:08
+LastEditTime: 2021-08-07 15:47:27
 FilePath: /PCDet/tools/eval_utils/eval_utils.py
 '''
 import pickle
@@ -63,7 +63,7 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
     for i, batch_dict in enumerate(dataloader):
         load_data_to_gpu(batch_dict)
         with torch.no_grad():
-            pred_dicts, ret_dict = model(batch_dict)
+            pred_dicts, ret_dict = model(batch_dict) # 模型训练==============batch_dict（包含GT ）=======================
         disp_dict = {}
 
         statistics_info(cfg, ret_dict, metric, disp_dict)

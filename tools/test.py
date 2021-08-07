@@ -37,7 +37,7 @@ def parse_config():
     parser.add_argument('--max_waiting_mins', type=int, default=30, help='max waiting minutes')
     parser.add_argument('--start_epoch', type=int, default=0, help='')
     parser.add_argument('--eval_tag', type=str, default='default', help='eval tag for this experiment')
-    parser.add_argument('--eval_all', action='store_true', default=False, help='whether to evaluate all checkpoints')
+    parser.add_argument('--eval_all', action='store_true', default=False, help='whether to evaluate all checkpoints') # 测试特定训练设置的所有保存的检查点并在Tensorboard上绘制性能曲线，请添加–eval_all参数：
     parser.add_argument('--ckpt_dir', type=str, default=None, help='specify a ckpt directory to be evaluated if needed')
     parser.add_argument('--save_to_file', action='store_true', default=False, help='')
 
@@ -117,7 +117,7 @@ def repeat_eval_ckpt(model, test_loader, args, eval_output_dir, logger, ckpt_dir
         model.load_params_from_file(filename=cur_ckpt, logger=logger, to_cpu=dist_test)
         model.cuda()
 
-        # start evaluation
+        # start evaluation 开始预测
         cur_result_dir = eval_output_dir / ('epoch_%s' % cur_epoch_id) / cfg.DATA_CONFIG.DATA_SPLIT['test']
         tb_dict = eval_utils.eval_one_epoch(
             cfg, model, test_loader, cur_epoch_id, logger, dist_test=dist_test,

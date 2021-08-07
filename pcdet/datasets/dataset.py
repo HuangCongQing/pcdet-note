@@ -160,13 +160,16 @@ class DatasetTemplate(torch_data.Dataset):
             # 将类别index信息放到每个gt_boxes的最后
             gt_boxes = np.concatenate((data_dict['gt_boxes'], gt_classes.reshape(-1, 1).astype(np.float32)), axis=1)
 
-            # 处理GT box   缩小100倍数，归一化 转【0，1】
-            # gt_boxes[:,0] = gt_boxes[:,0]/100
-            # gt_boxes[:,0]  = (gt_boxes[:,0] - gt_boxes[:,0].min()) / ( gt_boxes[:,0].max()-gt_boxes[:,0].min())
+            # 处理GT box   ，归一化 转【0，1】
+            # rela_dis = [70.4, 80.0, 4.0] 
+            # gt_boxes[:,0]  = (gt_boxes[:,0] - 0) / 70.4
+            # gt_boxes[:,1]  = (gt_boxes[:,1]  + 40.0) / 80.0
+            # gt_boxes[:,2]  = (gt_boxes[:,2]  + 3.0) / 4.0
+            # for i  in range(3,6):
+            #     gt_boxes[:,i]  = gt_boxes[:,i] / rela_dis[i-3]
             # for i in range(len(gt_boxes[0])):
             #     gt_boxes[:,i] = gt_boxes[:,i]/100
             #     gt_boxes[:,i]  = (gt_boxes[:,i] - gt_boxes[:,i].min()) / ( gt_boxes[:,i].max()-gt_boxes[:,i].min())
-            
             data_dict['gt_boxes'] = gt_boxes # 真值框  gt_boxes: optional, (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...]
 
         # 使用点的哪些属性 比如x,y,z等
