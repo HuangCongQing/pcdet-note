@@ -142,6 +142,7 @@ class AnchorHeadTemplate(nn.Module):
         cls_loss = cls_loss_src.sum() / batch_size
 
         cls_loss = cls_loss * self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['cls_weight']  # 损失权重，cls_weight：1.0
+        # tensorboard显示
         tb_dict = {
             'rpn_loss_cls': cls_loss.item()
         }

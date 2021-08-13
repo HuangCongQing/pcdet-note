@@ -4,7 +4,7 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2021-05-02 23:48:58
-LastEditTime: 2021-06-16 21:45:26
+LastEditTime: 2021-08-07 17:46:08
 FilePath: /PCDet/pcdet/models/detectors/pointpillar.py
 '''
 from .detector3d_template import Detector3DTemplate
@@ -36,7 +36,7 @@ class PointPillar(Detector3DTemplate):
 
         loss_rpn, tb_dict = self.dense_head.get_loss()
         tb_dict = {
-            'loss_rpn': loss_rpn.item(),
+            'loss_rpn(cls_loss + box_loss)': loss_rpn.item(),
             **tb_dict
         }
 

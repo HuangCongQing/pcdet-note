@@ -31,7 +31,7 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
             cur_lr = optimizer.param_groups[0]['lr']
 
         if tb_log is not None:
-            tb_log.add_scalar('meta_data/learning_rate', cur_lr, accumulated_iter)
+            tb_log.add_scalar('meta_data/learning_rate', cur_lr, accumulated_iter) # tensorboard显示
 
         model.train() #一个固定语句
         optimizer.zero_grad()  # 梯度清零
@@ -42,7 +42,7 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
         clip_grad_norm_(model.parameters(), optim_cfg.GRAD_NORM_CLIP) # 梯度裁剪
         optimizer.step() # 更新
 
-        accumulated_iter += 1
+        accumulated_iter += 1 # tensorboard 横坐标？
         disp_dict.update({'loss': loss.item(), 'lr': cur_lr})
 
         # log to console and tensorboard
@@ -53,8 +53,8 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
             tbar.refresh()
 
             if tb_log is not None:
-                tb_log.add_scalar('train/loss', loss, accumulated_iter)
-                tb_log.add_scalar('meta_data/learning_rate', cur_lr, accumulated_iter)
+                tb_log.add_scalar('train/loss', loss, accumulated_iter) # tensorboard显示
+                tb_log.add_scalar('meta_data/learning_rate', cur_lr, accumulated_iter) # tensorboard显示
                 for key, val in tb_dict.items():
                     tb_log.add_scalar('train/' + key, val, accumulated_iter)
     if rank == 0:

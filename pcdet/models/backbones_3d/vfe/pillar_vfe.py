@@ -49,7 +49,7 @@ class PFNLayer(nn.Module):
             return x_concatenated
 
 
-class PillarVFE(VFETemplate):
+class PillarVFE(VFETemplate): # 继承：vfe_template.py
     def __init__(self, model_cfg, num_point_features, voxel_size, point_cloud_range):
         super().__init__(model_cfg=model_cfg)
 

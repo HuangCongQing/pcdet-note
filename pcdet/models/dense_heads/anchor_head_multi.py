@@ -347,7 +347,7 @@ class AnchorHeadMulti(AnchorHeadTemplate):
 
             loc_loss = loc_loss * self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['loc_weight']
             box_losses += loc_loss
-            tb_dict['rpn_loss_loc'] = tb_dict.get('rpn_loss_loc', 0) + loc_loss.item()
+            tb_dict['rpn_loss_loc'] = tb_dict.get('rpn_loss_loc', 0) + loc_loss.item() #  # tensorboard显示
 
             if box_dir_cls_preds is not None:
                 if not isinstance(box_dir_cls_preds, list):
