@@ -7,16 +7,16 @@ from scipy.spatial import Delaunay
 from ..ops.roiaware_pool3d import roiaware_pool3d_utils
 from . import common_utils
 
-# 
-def in_hull(p, hull):
+# in_hull函数是判断点云是否在bbox中，（是否在物体的2D检测框中
+def in_hull(p, hull): #  Test if points in `p` are in `hull`
     """
     :param p: (N, K) test points
-    :param hull: (M, K) M corners of a box
+    :param hull: (M, K) M corners of a box box的角点
     :return (N) bool
     """
     try:
         if not isinstance(hull, Delaunay):
-            hull = Delaunay(hull)
+            hull = Delaunay(hull) # Delaunay三角剖分
         flag = hull.find_simplex(p) >= 0
     except scipy.spatial.qhull.QhullError:
         print('Warning: not a hull %s' % str(hull))

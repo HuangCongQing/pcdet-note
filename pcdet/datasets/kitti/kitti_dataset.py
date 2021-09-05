@@ -1,7 +1,7 @@
 '''
 Author: https://blog.csdn.net/weixin_44128857/article/details/108516213
 Date: 2021-07-30 11:53:21
-LastEditTime: 2021-08-03 20:29:45
+LastEditTime: 2021-09-05 20:53:08
 LastEditors: Please set LastEditors
 Description: In User Settings Edit
 FilePath: /PCDet/pcdet/datasets/kitti/kitti_dataset.py
@@ -296,7 +296,7 @@ class KittiDataset(DatasetTemplate):
                         #则，flag.sum()是计算，在当前框内的点云的个数（True的个数）
                         
                         #最后num_points_in_gt是一个数组:[5,8,10,5,4,...],其长度是框的个数，
-                        # 里面的数字表示该框里包含点云的个数
+                        # 里面的数字表示该框里包含点云的个数======================================
                         num_points_in_gt[k] = flag.sum()
                     annotations['num_points_in_gt'] = num_points_in_gt
 
