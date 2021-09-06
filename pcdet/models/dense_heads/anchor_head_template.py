@@ -29,9 +29,10 @@ class AnchorHeadTemplate(nn.Module):
             anchor_ndim=self.box_coder.code_size
         )
         self.anchors = [x.cuda() for x in anchors]
+        # 
         self.target_assigner = self.get_target_assigner(anchor_target_cfg)
 
-        self.forward_ret_dict = {}
+        self.forward_ret_dict = {} # 空
         self.build_losses(self.model_cfg.LOSS_CONFIG)
 
     @staticmethod
@@ -69,11 +70,11 @@ class AnchorHeadTemplate(nn.Module):
         else:
             raise NotImplementedError
         return target_assigner
-
+    # 添加三个loss模块
     def build_losses(self, losses_cfg):
         self.add_module(
             'cls_loss_func',
-            loss_utils.SigmoidFocalClassificationLoss(alpha=0.25, gamma=2.0)
+            loss_utils.SigmoidFocalClassificationLoss(alpha=0.25, gamma=2.0) # focalloss
         )
         reg_loss_name = 'WeightedSmoothL1Loss' if losses_cfg.get('REG_LOSS_TYPE', None) is None \
             else losses_cfg.REG_LOSS_TYPE
@@ -85,7 +86,7 @@ class AnchorHeadTemplate(nn.Module):
             'dir_loss_func',
             loss_utils.WeightedCrossEntropyLoss()
         )
-
+    # 
     def assign_targets(self, gt_boxes):
         """
         Args:
@@ -172,17 +173,17 @@ class AnchorHeadTemplate(nn.Module):
             dir_targets.scatter_(-1, dir_cls_targets.unsqueeze(dim=-1).long(), 1.0)
             dir_cls_targets = dir_targets
         return dir_cls_targets
-    # ----------------------------------- 计算box 位置 loss  https://blog.csdn.net/W1995S/article/details/115399145 --------------------------------
+    # ----------------------------------- 计算box 位置回归loss box_loss(位置损失 + 方向(c朝向角)损失)  https://blog.csdn.net/W1995S/article/details/115399145 --------------------------------
     def get_box_reg_layer_loss(self):
         box_preds = self.forward_ret_dict['box_preds']   # 位置预测结果 [N, H, W, C2] = [3, 248, 216, 42] # 来源:     self.forward_ret_dict['cls_preds'] = cls_preds  pcdet/models/dense_heads/anchor_head_single.py
         box_dir_cls_preds = self.forward_ret_dict.get('dir_cls_preds', None)  # 方向、类别预测结果 [N, H, W, C3] = [3,248,216,12]  12??????????????
-        box_reg_targets = self.forward_ret_dict['box_reg_targets'] # box回归目标 [3, 321408, 7]
-        box_cls_labels = self.forward_ret_dict['box_cls_labels']  # box类别标签 [3, 321408]   (num_anchors ： 321408 = 107136 x 3，3帧点云(batch_size)，每一帧点云生成107136 = 248 x 216 x 2个anchor。)
+        box_reg_targets = self.forward_ret_dict['box_reg_targets'] # GT box回归目标 [3, 321408, 7]
+        box_cls_labels = self.forward_ret_dict['box_cls_labels']  # GT box类别标签 [3, 321408]   (num_anchors ： 321408 = 107136 x 3，3帧点云(batch_size)，每一帧点云生成107136 = 248 x 216 x 2个anchor。)
         """ 
         torch.Size([3, 248, 216, 42]) # 位置预测结果 [N, H, W, C2]
         torch.Size([3, 248, 216, 12]) # 方向预测结果 [N, H, W, C3]
-        torch.Size([3, 321408, 7]) # box回归目标
-        torch.Size([3, 321408]) # box类别标签
+        torch.Size([3, 321408, 7]) # box回归目标 GT
+        torch.Size([3, 321408]) # box类别标签 GT
 
         数字解释：
             42：3帧点云，每一帧每个位置有14个预测值，14 = 7 x 2 ，2个anchor，7个回归坐标。
@@ -245,14 +246,14 @@ class AnchorHeadTemplate(nn.Module):
     # -------------------------------------- 获得损失 --------------------------------------
     def get_loss(self): #  pv_rcnn.py引用   loss_rpn, tb_dict = self.dense_head.get_loss() #
         cls_loss, tb_dict = self.get_cls_layer_loss()   # 计算classification loss    函数来源于下面   def get_cls_layer_loss(self):
-        box_loss, tb_dict_box = self.get_box_reg_layer_loss() # 计算box regression loss
+        box_loss, tb_dict_box = self.get_box_reg_layer_loss() # 计算回归box regression loss
         tb_dict.update(tb_dict_box)
         rpn_loss = cls_loss + box_loss #  区域提案RPN region proposal loss 是以上两个loss的和=============================
         print("rpn_loss:", rpn_loss)
 
         tb_dict['rpn_loss'] = rpn_loss.item()# rpn损失
         return rpn_loss, tb_dict # 
-
+    # 生成预测框
     def generate_predicted_boxes(self, batch_size, cls_preds, box_preds, dir_cls_preds=None):
         """
         Args:

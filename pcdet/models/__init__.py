@@ -4,7 +4,7 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2021-05-02 23:48:58
-LastEditTime: 2021-06-19 21:38:52
+LastEditTime: 2021-09-06 23:41:27
 FilePath: /PCDet/pcdet/models/__init__.py
 '''
 from collections import namedtuple
@@ -36,14 +36,14 @@ def model_fn_decorator():
 
     def model_func(model, batch_dict):
         load_data_to_gpu(batch_dict)
-        ret_dict, tb_dict, disp_dict = model(batch_dict)
+        ret_dict, tb_dict, disp_dict = model(batch_dict) # 得到返回loss, tb_dict, disp_dict
 
-        loss = ret_dict['loss'].mean()
+        loss = ret_dict['loss'].mean() # 获取loss的均值
         if hasattr(model, 'update_global_step'):
             model.update_global_step()
         else:
             model.module.update_global_step()
 
-        return ModelReturn(loss, tb_dict, disp_dict)
+        return ModelReturn(loss, tb_dict, disp_dict) # 最终返回loss, tb_dict, disp_dict
 
     return model_func

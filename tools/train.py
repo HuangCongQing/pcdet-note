@@ -15,7 +15,7 @@ import sys
 sys.path.append('..')
 from pcdet.config import cfg, cfg_from_list, cfg_from_yaml_file, log_config_to_file
 from pcdet.datasets import build_dataloader # 数据 pcdet/datasets/__init__.py
-from pcdet.models import build_network, model_fn_decorator # 模型
+from pcdet.models import build_network, model_fn_decorator # 模型和损失函数
 from pcdet.utils import common_utils
 from train_utils.optimization import build_optimizer, build_scheduler # 优化器
 from train_utils.train_utils import train_model
@@ -159,7 +159,7 @@ def main():
         model,  # 模型
         optimizer,
         train_loader,  # 数据
-        model_func=model_fn_decorator(),
+        model_func=model_fn_decorator(),  # 返回损失 loss, tb_dict, disp_dict
         lr_scheduler=lr_scheduler,
         optim_cfg=cfg.OPTIMIZATION,
         start_epoch=start_epoch,

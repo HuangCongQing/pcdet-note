@@ -107,7 +107,7 @@ class BaseBEVBackbone(nn.Module):
         if len(self.deblocks) > len(self.blocks):
             x = self.deblocks[-1](x)
 
-        data_dict['spatial_features_2d'] = x
+        data_dict['spatial_features_2d'] = x  # torch.Size([3, 384, 248, 216]) # 2D卷积，上下采样连接后的 (batch_size，6C，H/2，W/2)
 
         return data_dict
 ''' 
@@ -123,6 +123,7 @@ class BaseBEVBackbone(nn.Module):
 'image_shape'         (3, 2) # 图像尺寸
 'pillar_features'     torch.Size([17842, 64])  # pillar特征（C, P）的Tensor，特征维度C=64，Pillar非空P=17842个
 'spatial_features'    torch.Size([3, 64, 496, 432])  # (batch_size，C，H，W)，其实C H W是固定的
-'spatial_features_2d' torch.Size([3, 384, 248, 216]) # 2D卷积，上下采样连接后的 (batch_size，6C，H/2，W/2) 
+
+'spatial_features_2d' torch.Size([3, 384, 248, 216]) # 2D卷积，上下采样连接后的 (batch_size，6C，H/2，W/2)  #==========================================
 
  '''
