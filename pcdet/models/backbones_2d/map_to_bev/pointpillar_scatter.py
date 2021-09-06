@@ -1,3 +1,12 @@
+'''
+Description: 
+Author: HCQ
+Company(School): UCAS
+Email: 1756260160@qq.com
+Date: 2021-08-03 09:26:49
+LastEditTime: 2021-09-06 13:11:53
+FilePath: /PCDet/pcdet/models/backbones_2d/map_to_bev/pointpillar_scatter.py
+'''
 import torch
 import torch.nn as nn
 
@@ -33,7 +42,7 @@ class PointPillarScatter(nn.Module):
 
         batch_spatial_features = torch.stack(batch_spatial_features, 0)
         batch_spatial_features = batch_spatial_features.view(batch_size, self.num_bev_features * self.nz, self.ny, self.nx)
-        batch_dict['spatial_features'] = batch_spatial_features
+        batch_dict['spatial_features'] = batch_spatial_features #=============================================================
         return batch_dict
 """ 
 

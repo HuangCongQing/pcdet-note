@@ -53,30 +53,33 @@ DATA_CONFIG:
               WORLD_SCALE_RANGE: [0.95, 1.05] # 世界范围
 # 模型===============================================
 MODEL:
-    NAME: PointPillar
-
+    NAME: PointPillar # build_networks    pcdet/models/detectors/pointpillar.py
+    # Step1
     VFE:
-        NAME: PillarVFE #  pcdet/models/backbones_3d/vfe/pillar_vfe.py
+        NAME: PillarVFE #  pcdet/models/backbones_3d/vfe/pillar_vfe.py =======================================================================
         WITH_DISTANCE: False
         USE_ABSLOTE_XYZ: True
         USE_NORM: True
         NUM_FILTERS: [64]   #滤波器个数
 
+    # Step2
     MAP_TO_BEV:
-        NAME: PointPillarScatter # pcdet/models/backbones_2d/map_to_bev/pointpillar_scatter.py
+        NAME: PointPillarScatter # pcdet/models/backbones_2d/map_to_bev/pointpillar_scatter.py  =======================================================================
         NUM_BEV_FEATURES: 64 #BEV特征数
 
+    # Step3
     BACKBONE_2D:
-        NAME: BaseBEVBackbone # pcdet/models/backbones_2d/base_bev_backbone.py
+        NAME: BaseBEVBackbone # pcdet/models/backbones_2d/base_bev_backbone.py  =======================================================================
         LAYER_NUMS: [3, 5, 5]  #层数
         LAYER_STRIDES: [2, 2, 2] #层步幅
         NUM_FILTERS: [64, 128, 256] #滤波器个数
         UPSAMPLE_STRIDES: [1, 2, 4] #上采样步幅
         NUM_UPSAMPLE_FILTERS: [128, 128, 128] #上采样滤波器个数
 
+    # Step4
     # 密集卷积头======================
     DENSE_HEAD:
-        NAME: AnchorHeadSingle # pcdet/models/dense_heads/anchor_head_single.py
+        NAME: AnchorHeadSingle # pcdet/models/dense_heads/anchor_head_single.py  =======================================================================
         CLASS_AGNOSTIC: False
 
         USE_DIRECTION_CLASSIFIER: True #使用方向分类器

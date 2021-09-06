@@ -1,3 +1,12 @@
+'''
+Description: 
+Author: HCQ
+Company(School): UCAS
+Email: 1756260160@qq.com
+Date: 2021-08-03 09:26:49
+LastEditTime: 2021-09-06 13:29:04
+FilePath: /PCDet/pcdet/models/dense_heads/anchor_head_single.py
+'''
 import numpy as np
 import torch.nn as nn
 #  分类
@@ -74,3 +83,25 @@ class AnchorHeadSingle(AnchorHeadTemplate):
             data_dict['cls_preds_normalized'] = False
 
         return data_dict
+''' 
+
+定位：pcdet/models/dense_heads/anchor_head_single.py   # 预测类别、box
+一个 data_dict：
+'batch_size'：        3  # 3帧点云
+'points'              torch.Size([69375, 5])  # 点数目可变 猜测(? x y z r)
+'frame_id'            (3,)  # 帧编号
+'gt_boxes'            torch.Size([3, 40, 8])  # 3帧点，好像每帧最多40个ground truth，[x, y, z, 长dx, 宽dy, 高dz, 角度heading, 标签？]
+'use_lead_xyz'        torch.Size([3])  # ？
+'voxels'              torch.Size([17842, 32, 4]) # 体素
+'voxel_coords'        torch.Size([17842, 4]) # 体素坐标
+'voxel_num_points'    torch.Size([17842])  # 体素点数
+'image_shape'         (3, 2) # 图像尺寸
+'pillar_features'     torch.Size([17842, 64])  # pillar特征（C, P）的Tensor，特征维度C=64，Pillar非空P=17842个 【C是原来D(9)维处理后的维度】   【对N进行Max Pooling操作,去掉N】
+'spatial_features'    torch.Size([3, 64, 496, 432])  # (batch_size，C，H，W)，其实C H W是固定的
+'spatial_features_2d' torch.Size([3, 384, 248, 216]) # 2D卷积，上下采样连接后的 (batch_size，6C，H/2，W/2) 
+'calib'               (3,)  # 相机、雷达、惯导等传感器的矫正数据
+'road_plane'          torch.Size([3, 4])  # planes文件夹里002188/002193/002196.txt 标签数据
+'batch_cls_preds'     torch.Size([3, 321408, 3])  # 类别预测
+'batch_box_preds'     torch.Size([3, 321408, 7])  # box预测
+'cls_preds_normalized'  False  # 类别预测是否归一化
+ '''

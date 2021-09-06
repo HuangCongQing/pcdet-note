@@ -4,37 +4,38 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2021-05-02 23:48:58
-LastEditTime: 2021-08-07 17:46:08
+LastEditTime: 2021-09-06 15:10:21
 FilePath: /PCDet/pcdet/models/detectors/pointpillar.py
 '''
-from .detector3d_template import Detector3DTemplate
+from .detector3d_template import Detector3DTemplate  # 继承自pcdet/models/detectors/detector3d_template.py！！！！
 
 
-class PointPillar(Detector3DTemplate):
-    def __init__(self, model_cfg, num_class, dataset):
+class PointPillar(Detector3DTemplate): # 继承自pcdet/models/detectors/detector3d_template.py！！！！
+    def __init__(self, model_cfg, num_class, dataset): # 初始化的三个参数【 参数都是从train.py传过来的】
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
-        self.module_list = self.build_networks() # build网络
+        self.module_list = self.build_networks() # build网络=============================================================================
 
-    def forward(self, batch_dict):
-        for cur_module in self.module_list: # 遍历所需模块
+    def forward(self, batch_dict): # 得到预测数据pred_dicts
+        for cur_module in self.module_list: # 遍历所需模块(module_topology的8个模块)
             # print('遍历所需模块:','\n',str(cur_module))
-            batch_dict = cur_module(batch_dict)
+            batch_dict = cur_module(batch_dict) # 最终得到完整模型！！！！！！！！！！！！！============================================================================
 
-        if self.training:
-            loss, tb_dict, disp_dict = self.get_training_loss()
+        if self.training: # #情况1：如果用于训练
+            loss, tb_dict, disp_dict = self.get_training_loss() #得到训练loss   关键函数1=====================local： 下面line
 
             ret_dict = {
                 'loss': loss
             }
             return ret_dict, tb_dict, disp_dict
-        else:
-            pred_dicts, recall_dicts = self.post_processing(batch_dict)
+        else:  #情况2：#其他情况，不用于训练，即用于测试 用于测试推理！！！！！！！！！！！！！！！！
+            pred_dicts, recall_dicts = self.post_processing(batch_dict) #关键函数2===================local： pcdet/models/detectors/detector3d_template.py
             return pred_dicts, recall_dicts
-
-    def get_training_loss(self):
+    
+    # 关键函数1=================================================
+    def get_training_loss(self): # 通过self.get_training_loss()调用
         disp_dict = {}
 
-        loss_rpn, tb_dict = self.dense_head.get_loss()
+        loss_rpn, tb_dict = self.dense_head.get_loss()  # dense_head
         tb_dict = {
             'loss_rpn(cls_loss + box_loss)': loss_rpn.item(),
             **tb_dict

@@ -119,8 +119,8 @@ class PillarVFE(VFETemplate): # 继承：vfe_template.py
         for pfn in self.pfn_layers:
             features = pfn(features)
         features = features.squeeze()
-        batch_dict['pillar_features'] = features #
-        # print('batch_dict-------------------','\n',batch_dict)
+        batch_dict['pillar_features'] = features #  torch.Size([17842, 64])  # pillar特征（C, P）的Tensor，特征维度C=64，Pillar非空P=17842个
+        # print('batch_dict-------------------','\n',batch_dict) #=====================================================================================
         return batch_dict
 ''' 
 一个 batch_dict：
@@ -133,6 +133,6 @@ class PillarVFE(VFETemplate): # 继承：vfe_template.py
 'voxel_coords'        torch.Size([17842, 4]) # 体素坐标
 'voxel_num_points'    torch.Size([17842])  # 体素点数
 'image_shape'         (3, 2) # 图像尺寸
-'pillar_features'     torch.Size([17842, 64])  # pillar特征（C, P）的Tensor，特征维度C=64，Pillar非空P=17842个
+'pillar_features'     torch.Size([17842, 64])  # pillar特征（C, P）的Tensor，特征维度C=64，Pillar非空P=17842个  【C是原来D(9)维处理后的维度】   【对N进行Max Pooling操作,去掉N】=====================================================
 
  '''
