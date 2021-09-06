@@ -60,7 +60,7 @@ def parse_config():
 
 
 def main():
-    args, cfg = parse_config()
+    args, cfg = parse_config() # 参数
     if args.launcher == 'none':
         dist_train = False
         total_gpus = 1
