@@ -171,7 +171,7 @@ class Detector3DTemplate(nn.Module): # 【 参数都是从train.py传过来的�
 
     def forward(self, **kwargs):
         raise NotImplementedError
-    #   后处理 引用： 【pv_rcnn.py】推理  pred_dicts, recall_dicts = self.post_processing(batch_dict) 
+    #   预测阶段: 后处理 引用： 【pv_rcnn.py】推理  pred_dicts, recall_dicts = self.post_processing(batch_dict) 
     # https://blog.csdn.net/weixin_44579633/article/details/107542954#t6
     def post_processing(self, batch_dict):
         """
@@ -202,7 +202,7 @@ class Detector3DTemplate(nn.Module): # 【 参数都是从train.py传过来的�
                 assert batch_dict['batch_box_preds'].shape.__len__() == 3
                 batch_mask = index
 
-            box_preds = batch_dict['batch_box_preds'][batch_mask] # 边框的预测
+            box_preds = batch_dict['batch_box_preds'][batch_mask] # 边框的预测====================
             src_box_preds = box_preds
 
             if not isinstance(batch_dict['batch_cls_preds'], list):
@@ -271,6 +271,7 @@ class Detector3DTemplate(nn.Module): # 【 参数都是从train.py传过来的�
                 final_labels = label_preds[selected]  #最终标签
                 final_boxes = box_preds[selected]  #最终预测框
 
+            # #Recall 是用来计算被正确识别出来的个数与测试集中所有个数的比值
             recall_dict = self.generate_recall_record(  # =====================其中用到了两个关键函数分别是class_agnostic_nms和generate_recall_record============================
                 box_preds=final_boxes if 'rois' not in batch_dict else src_box_preds,
                 recall_dict=recall_dict, batch_index=index, data_dict=batch_dict,
@@ -283,14 +284,14 @@ class Detector3DTemplate(nn.Module): # 【 参数都是从train.py传过来的�
                 box_preds=src_box_preds, #就选取数据中的结果batch_dict['batch_box_preds']
             '''
 
-            record_dict = { #Recall 是用来计算被正确识别出来的个数与测试集中所有个数的比值
+            record_dict = { 
                 'pred_boxes': final_boxes,
                 'pred_scores': final_scores,
                 'pred_labels': final_labels
             }
             pred_dicts.append(record_dict) # 
 
-        return pred_dicts, recall_dict # 返回
+        return pred_dicts, recall_dict # 返回 # 预测结束,返回结果
 
     @staticmethod
     def generate_recall_record(box_preds, recall_dict, batch_index, data_dict=None, thresh_list=None): ####

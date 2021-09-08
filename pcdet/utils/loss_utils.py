@@ -7,6 +7,7 @@ from . import box_utils
 
 # 多标签分类损失函数使用的是focal loss  ref: https://blog.csdn.net/W1995S/article/details/114687437
 # https://blog.csdn.net/W1995S/article/details/115400741
+# focal loss 分类损失
 class SigmoidFocalClassificationLoss(nn.Module):
     """
     Sigmoid focal cross entropy loss.
@@ -73,7 +74,7 @@ class SigmoidFocalClassificationLoss(nn.Module):
 
         return loss * weights # 
 
-# smoothL1 loss  # 位置损失函数：加权 Smooth L1 Loss
+# smoothL1 loss  # 位置回归损失函数：加权 Smooth L1 Loss
 class WeightedSmoothL1Loss(nn.Module):
     """
     Code-wise Weighted Smooth L1 Loss modified based on fvcore.nn.smooth_l1_loss
@@ -120,9 +121,9 @@ class WeightedSmoothL1Loss(nn.Module):
         Returns:
             loss: (B, #anchors) float tensor.              [3, 321408, 7]
                 加权的 smooth l1 loss without reduction.
-————————————————
-版权声明：本文为CSDN博主「THE@JOKER」的原创文章，遵循CC 4.0 BY-SA版权协议，转载请附上原文出处链接及本声明。
-原文链接：https://blog.csdn.net/W1995S/article/details/115399145
+        ————————————————
+        版权声明：本文为CSDN博主「THE@JOKER」的原创文章，遵循CC 4.0 BY-SA版权协议，转载请附上原文出处链接及本声明。
+        原文链接：https://blog.csdn.net/W1995S/article/details/115399145
         """
         target = torch.where(torch.isnan(target), input, target)  # ignore nan targets   # 忽略 nan targets
 
@@ -182,7 +183,7 @@ class WeightedL1Loss(nn.Module):
 
         return loss
 
-# 交叉熵损失
+# 权重交叉熵损失(朝向dir损失)
 class WeightedCrossEntropyLoss(nn.Module):
     """
     Transform input to fit the fomation of PyTorch offical cross entropy loss

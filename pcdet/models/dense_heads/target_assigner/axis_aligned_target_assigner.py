@@ -121,7 +121,7 @@ class AxisAlignedTargetAssigner(object):
 
         cls_labels = torch.stack(cls_labels, dim=0)
         reg_weights = torch.stack(reg_weights, dim=0)
-        all_targets_dict = {
+        all_targets_dict = {  # 得到的GT 的结果
             'box_cls_labels': cls_labels,
             'box_reg_targets': bbox_targets,
             'reg_weights': reg_weights

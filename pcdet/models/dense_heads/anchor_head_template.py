@@ -33,7 +33,7 @@ class AnchorHeadTemplate(nn.Module):
         self.target_assigner = self.get_target_assigner(anchor_target_cfg)
 
         self.forward_ret_dict = {} # 空
-        self.build_losses(self.model_cfg.LOSS_CONFIG)
+        self.build_losses(self.model_cfg.LOSS_CONFIG)  # 添加三个loss模块 ,分类,回归和朝向
 
     @staticmethod
     def generate_anchors(anchor_generator_cfg, grid_size, point_cloud_range, anchor_ndim=7):
@@ -73,17 +73,17 @@ class AnchorHeadTemplate(nn.Module):
     # 添加三个loss模块
     def build_losses(self, losses_cfg):
         self.add_module(
-            'cls_loss_func',
-            loss_utils.SigmoidFocalClassificationLoss(alpha=0.25, gamma=2.0) # focalloss
+            'cls_loss_func', # 分类损失 Focal Loss
+            loss_utils.SigmoidFocalClassificationLoss(alpha=0.25, gamma=2.0) # focalloss     pcdet/utils/loss_utils.py
         )
         reg_loss_name = 'WeightedSmoothL1Loss' if losses_cfg.get('REG_LOSS_TYPE', None) is None \
             else losses_cfg.REG_LOSS_TYPE
         self.add_module(
-            'reg_loss_func',
+            'reg_loss_func', # 回归损失Smooth L1
             getattr(loss_utils, reg_loss_name)(code_weights=losses_cfg.LOSS_WEIGHTS['code_weights'])
         )
         self.add_module(
-            'dir_loss_func',
+            'dir_loss_func',  # 朝向损失 由于localization loss不能区分box的  , 所以加上direction loss.
             loss_utils.WeightedCrossEntropyLoss()
         )
     # 
@@ -118,6 +118,8 @@ class AnchorHeadTemplate(nn.Module):
         cared = box_cls_labels >= 0  # [N, num_anchors]  ，我们只关心>=0标签的box
         positives = box_cls_labels > 0 # 标签>0 正样本
         negatives = box_cls_labels == 0 # 标签=0 负样本
+        # 上面的输出可以看到box_cls_labels几乎全是0，其实不然，里面还有非常少的-1，1，2，3。
+        # 1：本是Car标签，这里是将IOU大于某一阈值的anchor的标签值赋予1，是Car的正样本标签。2：Pedestrian。3：Cyclists。
         negative_cls_weights = negatives * 1.0 # 负样本类别权重，0变1
         cls_weights = (negative_cls_weights + 1.0 * positives).float()  # 正负样本全部变1、2，3
         reg_weights = positives.float() # 只保留标签>0的值
@@ -139,7 +141,7 @@ class AnchorHeadTemplate(nn.Module):
         one_hot_targets.scatter_(-1, cls_targets.unsqueeze(dim=-1).long(), 1.0)    # 转为one-hot类型
         cls_preds = cls_preds.view(batch_size, -1, self.num_class)  # [3, 321408, 3]
         one_hot_targets = one_hot_targets[..., 1:]  # [3, 321408, 3]  只有0和1，1大约有150±30个左右
-        cls_loss_src = self.cls_loss_func(cls_preds, one_hot_targets, weights=cls_weights)  # [N, M]
+        cls_loss_src = self.cls_loss_func(cls_preds, one_hot_targets, weights=cls_weights)  # [N, M]  # 计算focal loss( pcdet/utils/loss_utils.py)==================================
         cls_loss = cls_loss_src.sum() / batch_size
 
         cls_loss = cls_loss * self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['cls_weight']  # 损失权重，cls_weight：1.0
@@ -147,7 +149,7 @@ class AnchorHeadTemplate(nn.Module):
         tb_dict = {
             'rpn_loss_cls': cls_loss.item()
         }
-        return cls_loss, tb_dict
+        return cls_loss, tb_dict # 返回分类损失
 
     @staticmethod
     def add_sin_difference(boxes1, boxes2, dim=6):
@@ -235,7 +237,7 @@ class AnchorHeadTemplate(nn.Module):
             dir_logits = box_dir_cls_preds.view(batch_size, -1, self.model_cfg.NUM_DIR_BINS)   # 方向预测值 [3, 321408, 2]
             weights = positives.type_as(dir_logits)   # 只要正样本的方向预测值
             weights /= torch.clamp(weights.sum(-1, keepdim=True), min=1.0)  # [3, 321408]
-            dir_loss = self.dir_loss_func(dir_logits, dir_targets, weights=weights)
+            dir_loss = self.dir_loss_func(dir_logits, dir_targets, weights=weights) # 朝向loss===================================================
             dir_loss = dir_loss.sum() / batch_size
             dir_loss = dir_loss * self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['dir_weight']  # 损失权重，dir_weight: 0.2
             # 总的位置损失==============================
