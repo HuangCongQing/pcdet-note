@@ -1,9 +1,18 @@
+'''
+Description: model_nms_utils.class_agnostic_nms
+Author: HCQ
+Company(School): UCAS
+Email: 1756260160@qq.com
+Date: 2021-08-03 09:26:49
+LastEditTime: 2021-09-08 19:24:12
+FilePath: /PCDet/pcdet/models/model_utils/model_nms_utils.py
+'''
 import torch
 
 from ...ops.iou3d_nms import iou3d_nms_utils
 
-# 非极大值抑制
-def class_agnostic_nms(box_scores, box_preds, nms_config, score_thresh=None):
+# 非极大值抑制nms
+def class_agnostic_nms(box_scores, box_preds, nms_config, score_thresh=None): # 预测的分类scores和bbox
     src_box_scores = box_scores
     if score_thresh is not None:
         scores_mask = (box_scores >= score_thresh)
@@ -14,7 +23,8 @@ def class_agnostic_nms(box_scores, box_preds, nms_config, score_thresh=None):
     if box_scores.shape[0] > 0:
         box_scores_nms, indices = torch.topk(box_scores, k=min(nms_config.NMS_PRE_MAXSIZE, box_scores.shape[0]))
         boxes_for_nms = box_preds[indices]
-        keep_idx, selected_scores = getattr(iou3d_nms_utils, nms_config.NMS_TYPE)(
+        # 计算nms nms_gpu() 
+        keep_idx, selected_scores = getattr(iou3d_nms_utils, nms_config.NMS_TYPE)( # NMS_TYPE: nms_gpu() 计算nms的函数   #NMS类型 # pcdet/ops/iou3d_nms/iou3d_nms_utils.py
                 boxes_for_nms[:, 0:7], box_scores_nms, nms_config.NMS_THRESH, **nms_config
         )
         selected = indices[keep_idx[:nms_config.NMS_POST_MAXSIZE]]
@@ -50,7 +60,7 @@ def multi_classes_nms(cls_scores, box_preds, nms_config, score_thresh=None):
         if box_scores.shape[0] > 0:
             box_scores_nms, indices = torch.topk(box_scores, k=min(nms_config.NMS_PRE_MAXSIZE, box_scores.shape[0]))
             boxes_for_nms = cur_box_preds[indices]
-            keep_idx, selected_scores = getattr(iou3d_nms_utils, nms_config.NMS_TYPE)(
+            keep_idx, selected_scores = getattr(iou3d_nms_utils, nms_config.NMS_TYPE)(  # # NMS_TYPE: nms_gpu() 计算nms的函数   #NMS类型 # pcdet/ops/iou3d_nms/iou3d_nms_utils.py
                     boxes_for_nms[:, 0:7], box_scores_nms, nms_config.NMS_THRESH, **nms_config
             )
             selected = indices[keep_idx[:nms_config.NMS_POST_MAXSIZE]]

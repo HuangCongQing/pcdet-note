@@ -4,7 +4,7 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2021-08-03 09:26:49
-LastEditTime: 2021-09-08 17:29:59
+LastEditTime: 2021-09-08 20:01:13
 FilePath: /PCDet/pcdet/models/dense_heads/anchor_head_single.py
 '''
 import numpy as np
@@ -71,7 +71,7 @@ class AnchorHeadSingle(AnchorHeadTemplate):
             dir_cls_preds = None
 
         if self.training: # 训练=============================================================
-            targets_dict = self.assign_targets(
+            targets_dict = self.assign_targets(  # 计算IOU===============
                 gt_boxes=data_dict['gt_boxes']
             )
             self.forward_ret_dict.update(targets_dict) #  update() 方法向字典插入指定的项目。

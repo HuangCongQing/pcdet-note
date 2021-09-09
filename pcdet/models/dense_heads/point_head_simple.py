@@ -1,3 +1,12 @@
+'''
+Description: 
+Author: HCQ
+Company(School): UCAS
+Email: 1756260160@qq.com
+Date: 2021-08-03 09:26:49
+LastEditTime: 2021-09-08 19:51:47
+FilePath: /PCDet/pcdet/models/dense_heads/point_head_simple.py
+'''
 import torch
 
 from ...utils import box_utils
@@ -84,7 +93,7 @@ class PointHeadSimple(PointHeadTemplate):
         batch_dict['point_cls_scores'], _ = point_cls_scores.max(dim=-1)
 
         if self.training:
-            targets_dict = self.assign_targets(batch_dict)
+            targets_dict = self.assign_targets(batch_dict) #
             ret_dict['point_cls_labels'] = targets_dict['point_cls_labels'] # label
         self.forward_ret_dict = ret_dict
 

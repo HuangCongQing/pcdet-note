@@ -283,7 +283,7 @@ class Detector3DTemplate(nn.Module): # 【 参数都是从train.py传过来的�
             else: #如果rois本来就在数据中
                 box_preds=src_box_preds, #就选取数据中的结果batch_dict['batch_box_preds']
             '''
-
+            # 得到boxes，scores，labels 这三个参数最后会可视化出来
             record_dict = { 
                 'pred_boxes': final_boxes,
                 'pred_scores': final_scores,
@@ -294,7 +294,7 @@ class Detector3DTemplate(nn.Module): # 【 参数都是从train.py传过来的�
         return pred_dicts, recall_dict # 返回 # 预测结束,返回结果
 
     @staticmethod
-    def generate_recall_record(box_preds, recall_dict, batch_index, data_dict=None, thresh_list=None): ####
+    def generate_recall_record(box_preds, recall_dict, batch_index, data_dict=None, thresh_list=None): #### 重要函数
         if 'gt_boxes' not in data_dict:
             return recall_dict
 
@@ -321,12 +321,12 @@ class Detector3DTemplate(nn.Module): # 【 参数都是从train.py传过来的�
 
         if cur_gt.shape[0] > 0:
             if box_preds.shape[0] > 0:
-                iou3d_rcnn = iou3d_nms_utils.boxes_iou3d_gpu(box_preds[:, 0:7], cur_gt[:, 0:7])
+                iou3d_rcnn = iou3d_nms_utils.boxes_iou3d_gpu(box_preds[:, 0:7], cur_gt[:, 0:7]) # 
             else:
                 iou3d_rcnn = torch.zeros((0, cur_gt.shape[0]))
 
             if rois is not None:
-                iou3d_roi = iou3d_nms_utils.boxes_iou3d_gpu(rois[:, 0:7], cur_gt[:, 0:7])
+                iou3d_roi = iou3d_nms_utils.boxes_iou3d_gpu(rois[:, 0:7], cur_gt[:, 0:7]) # pcdet/ops/iou3d_nms/iou3d_nms_utils.py
 
             for cur_thresh in thresh_list:
                 if iou3d_rcnn.shape[0] == 0:

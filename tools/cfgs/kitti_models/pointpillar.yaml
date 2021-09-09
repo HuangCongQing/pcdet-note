@@ -129,7 +129,7 @@ MODEL:
             NORM_BY_NUM_EXAMPLES: False
             MATCH_HEIGHT: False #匹配高
             BOX_CODER: ResidualCoder #BOX编码器
-        # 损失配置
+        # 损失配置===================================================
         LOSS_CONFIG:
             LOSS_WEIGHTS: {
                 'cls_weight': 1.0, # 分类权重

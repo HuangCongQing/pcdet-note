@@ -17,7 +17,7 @@ class AnchorHeadTemplate(nn.Module):
         self.predict_boxes_when_training = predict_boxes_when_training
         self.use_multihead = self.model_cfg.get('USE_MULTIHEAD', False)
 
-        anchor_target_cfg = self.model_cfg.TARGET_ASSIGNER_CONFIG
+        anchor_target_cfg = self.model_cfg.TARGET_ASSIGNER_CONFIG # 检测头  目标分配器配置
         self.box_coder = getattr(box_coder_utils, anchor_target_cfg.BOX_CODER)(
             num_dir_bins=anchor_target_cfg.get('NUM_DIR_BINS', 6),
             **anchor_target_cfg.get('BOX_CODER_CONFIG', {})
@@ -30,7 +30,7 @@ class AnchorHeadTemplate(nn.Module):
         )
         self.anchors = [x.cuda() for x in anchors]
         # 
-        self.target_assigner = self.get_target_assigner(anchor_target_cfg)
+        self.target_assigner = self.get_target_assigner(anchor_target_cfg) #  目标分配器配置
 
         self.forward_ret_dict = {} # 空
         self.build_losses(self.model_cfg.LOSS_CONFIG)  # 添加三个loss模块 ,分类,回归和朝向
@@ -52,16 +52,16 @@ class AnchorHeadTemplate(nn.Module):
 
         return anchors_list, num_anchors_per_location_list
 
-    def get_target_assigner(self, anchor_target_cfg):
-        if anchor_target_cfg.NAME == 'ATSS':
+    def get_target_assigner(self, anchor_target_cfg): #  anchor_target_cfg 目标分配器配置
+        if anchor_target_cfg.NAME == 'ATSS': # 
             target_assigner = ATSSTargetAssigner(
                 topk=anchor_target_cfg.TOPK,
                 box_coder=self.box_coder,
                 use_multihead=self.use_multihead,
                 match_height=anchor_target_cfg.MATCH_HEIGHT
             )
-        elif anchor_target_cfg.NAME == 'AxisAlignedTargetAssigner':
-            target_assigner = AxisAlignedTargetAssigner(
+        elif anchor_target_cfg.NAME == 'AxisAlignedTargetAssigner':  # NAME: AxisAlignedTargetAssigner   # pointpillar.yaml使用了这个参数
+            target_assigner = AxisAlignedTargetAssigner( # pcdet/models/dense_heads/target_assigner/axis_aligned_target_assigner.py
                 model_cfg=self.model_cfg,
                 class_names=self.class_names,
                 box_coder=self.box_coder,
@@ -94,7 +94,7 @@ class AnchorHeadTemplate(nn.Module):
         Returns:
 
         """
-        targets_dict = self.target_assigner.assign_targets(
+        targets_dict = self.target_assigner.assign_targets( # 
             self.anchors, gt_boxes
         )
         return targets_dict
