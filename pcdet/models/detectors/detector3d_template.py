@@ -257,7 +257,7 @@ class Detector3DTemplate(nn.Module): # 【 参数都是从train.py传过来的�
                     label_preds = batch_dict[label_key][index]
                 else:  # 如果没有class标签的话，预测索引+1（下一个循环）
                     label_preds = label_preds + 1
-                selected, selected_scores = model_nms_utils.class_agnostic_nms(  # 非极大值抑制   ==========用到了两个关键函数分别是class_agnostic_nms和generate_recall_record=============
+                selected, selected_scores = model_nms_utils.class_agnostic_nms(  # nms非极大值抑制   ==========用到了两个关键函数分别是class_agnostic_nms和generate_recall_record=============
                     box_scores=cls_preds, box_preds=box_preds, # 分类的预测价值，边框的预测价值
                     nms_config=post_process_cfg.NMS_CONFIG,  #配置参数
                     score_thresh=post_process_cfg.SCORE_THRESH  #阈值
@@ -267,9 +267,9 @@ class Detector3DTemplate(nn.Module): # 【 参数都是从train.py传过来的�
                     max_cls_preds, _ = torch.max(src_cls_preds, dim=-1)  # 预测值的最大值 分类
                     selected_scores = max_cls_preds[selected]
 
-                final_scores = selected_scores  #最终分数
-                final_labels = label_preds[selected]  #最终标签
-                final_boxes = box_preds[selected]  #最终预测框
+                final_scores = selected_scores  #最终分数！！！！！！！！！！！！！！！！！！！！！
+                final_labels = label_preds[selected]  #最终标签！！！！！！！！！！！！
+                final_boxes = box_preds[selected]  #最终预测框！！！！！！！！！！！！！！！！
 
             # #Recall 是用来计算被正确识别出来的个数与测试集中所有个数的比值
             recall_dict = self.generate_recall_record(  # =====================其中用到了两个关键函数分别是class_agnostic_nms和generate_recall_record============================

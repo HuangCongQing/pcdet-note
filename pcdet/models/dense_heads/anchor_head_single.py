@@ -4,7 +4,7 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2021-08-03 09:26:49
-LastEditTime: 2021-09-08 20:01:13
+LastEditTime: 2021-09-09 13:14:35
 FilePath: /PCDet/pcdet/models/dense_heads/anchor_head_single.py
 '''
 import numpy as np
@@ -51,15 +51,17 @@ class AnchorHeadSingle(AnchorHeadTemplate):
     def forward(self, data_dict):
         #  # 2D卷积backbone后 (batch_size，6C，H/2，W/2)
         spatial_features_2d = data_dict['spatial_features_2d'] # torch.Size([3, 384, 248, 216]) # 2D卷积，上下采样连接后的 (batch_size，6C，H/2，W/2)
-
+        # 分类2D卷积
         cls_preds = self.conv_cls(spatial_features_2d)  # 2D卷积，进行类别预测   (batch_size，6C，H/2，W/2)
         print("cls_preds.shape:", cls_preds.shape) # torch.Size([1, 18(6*3), 248, 216])
+        # 回归2D卷积
         box_preds = self.conv_box(spatial_features_2d) # 2D卷积， 进行位置预测  torch.Size([3, 248, 216, 42]) # 位置预测结果 [N, H, W, C2]   3帧点云，每一帧每个位置有14个预测值，14 = 7 x 2 ，2个anchor，7个回归坐标。
         # 42：3帧点云，每一帧每个位置有14个预测值，14 = 7 x 2 ，2个anchor，7个回归坐标。
 
         cls_preds = cls_preds.permute(0, 2, 3, 1).contiguous()  # [N, H, W, C] # C放在最后面
-        box_preds = box_preds.permute(0, 2, 3, 1).contiguous()  # [N, H, W, C]
-        # 下面两行保存数据用来训练，计算loss
+        box_preds = box_preds.permute(0, 2, 3, 1).contiguous()  # [N, H, W, C] 3帧点云，每一帧每个位置有14个预测值，14 = 7 x 2 ，2个anchor，7个回归坐标。
+        # 42：3帧点云，每一帧每个位置有14个预测值，14 = 7 x 2 ，2个anchor，7个回归坐标。
+        # 
         self.forward_ret_dict['cls_preds'] = cls_preds  # 类别预测结果  pcdet/models/dense_heads/anchor_head_template.py会用到
         self.forward_ret_dict['box_preds'] = box_preds # 位置预测结果
 
@@ -71,13 +73,15 @@ class AnchorHeadSingle(AnchorHeadTemplate):
             dir_cls_preds = None
 
         if self.training: # 训练=============================================================
-            targets_dict = self.assign_targets(  # 计算IOU===============
+            # anchor生成和GT匹配（编码操作）
+            targets_dict = self.assign_targets(  # 计算IOU===============pcdet/models/dense_heads/anchor_head_template.py
                 gt_boxes=data_dict['gt_boxes']
             )
             self.forward_ret_dict.update(targets_dict) #  update() 方法向字典插入指定的项目。
 
         if not self.training or self.predict_boxes_when_training: # 预测=======================================================================
-            batch_cls_preds, batch_box_preds = self.generate_predicted_boxes( # 生成预测框generate_predicted_boxes
+            # 计算出每一个先验框的偏差和中心点的偏移量。通过解码得到真实框的中心和和宽高【解码操作】
+            batch_cls_preds, batch_box_preds = self.generate_predicted_boxes( # 生成预测框generate_predicted_boxes【解码操作】
                 batch_size=data_dict['batch_size'],
                 cls_preds=cls_preds, box_preds=box_preds, dir_cls_preds=dir_cls_preds
             )

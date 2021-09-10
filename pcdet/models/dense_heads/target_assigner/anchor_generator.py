@@ -1,6 +1,15 @@
+'''
+Description: 生成anchors
+Author: HCQ
+Company(School): UCAS
+Email: 1756260160@qq.com
+Date: 2021-07-20 20:34:59
+LastEditTime: 2021-09-09 12:04:17
+FilePath: /PCDet/pcdet/models/dense_heads/target_assigner/anchor_generator.py
+'''
 import torch
 
-
+# 生成anchors先验框==========================
 class AnchorGenerator(object):
     def __init__(self, anchor_range, anchor_generator_config):
         super().__init__()
@@ -72,7 +81,7 @@ if __name__ == '__main__':
 
     A = AnchorGenerator(
         anchor_range=[-75.2, -75.2, -2, 75.2, 75.2, 4],
-        anchor_generator_config=config
+        anchor_generator_config=config  # 配置
     )
     import pdb
     pdb.set_trace()

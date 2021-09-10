@@ -283,7 +283,7 @@ def boxes3d_lidar_to_aligned_bev_boxes(boxes3d):
     aligned_bev_boxes = torch.cat((boxes3d[:, 0:2] - choose_dims / 2, boxes3d[:, 0:2] + choose_dims / 2), dim=1) # 中心 + 长宽
     return aligned_bev_boxes
 
-
+# 使用的2D 的IOUboxes_iou_normal
 def boxes3d_nearest_bev_iou(boxes_a, boxes_b):
     """
     Args:

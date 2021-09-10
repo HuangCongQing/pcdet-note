@@ -23,19 +23,19 @@ class AnchorHeadTemplate(nn.Module):
             **anchor_target_cfg.get('BOX_CODER_CONFIG', {})
         )
 
-        anchor_generator_cfg = self.model_cfg.ANCHOR_GENERATOR_CONFIG
-        anchors, self.num_anchors_per_location = self.generate_anchors(
+        anchor_generator_cfg = self.model_cfg.ANCHOR_GENERATOR_CONFIG # 三类配置 Car ，Pedestrian，Cyclist
+        anchors, self.num_anchors_per_location = self.generate_anchors( # 生成anchors
             anchor_generator_cfg, grid_size=grid_size, point_cloud_range=point_cloud_range,
             anchor_ndim=self.box_coder.code_size
         )
-        self.anchors = [x.cuda() for x in anchors]
+        self.anchors = [x.cuda() for x in anchors] # 
         # 
         self.target_assigner = self.get_target_assigner(anchor_target_cfg) #  目标分配器配置
 
         self.forward_ret_dict = {} # 空
         self.build_losses(self.model_cfg.LOSS_CONFIG)  # 添加三个loss模块 ,分类,回归和朝向
 
-    @staticmethod
+    @staticmethod   # 生成anchors
     def generate_anchors(anchor_generator_cfg, grid_size, point_cloud_range, anchor_ndim=7):
         anchor_generator = AnchorGenerator(
             anchor_range=point_cloud_range,
