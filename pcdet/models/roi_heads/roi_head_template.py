@@ -43,7 +43,7 @@ class RoIHeadTemplate(nn.Module):
         return fc_layers
 
     @torch.no_grad()
-    def proposal_layer(self, batch_dict, nms_config):
+    def proposal_layer(self, batch_dict, nms_config): # 把一阶段检测出来的框选出来最好的一批框当作proposal进行refine
         """
         Args:
             batch_dict:
@@ -96,7 +96,7 @@ class RoIHeadTemplate(nn.Module):
         batch_dict['roi_labels'] = roi_labels + 1
         batch_dict['has_class_labels'] = True if batch_cls_preds.shape[-1] > 1 else False
         batch_dict.pop('batch_index', None)
-        return batch_dict
+        return batch_dict  # 把一阶段检测出来的框选出来最好的一批框当作proposal进行refine
 
     def assign_targets(self, batch_dict):
         batch_size = batch_dict['batch_size']

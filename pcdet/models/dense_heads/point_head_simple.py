@@ -1,10 +1,10 @@
 '''
-Description: 
+Description:  只分割前景点和后景点
 Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2021-08-03 09:26:49
-LastEditTime: 2021-09-09 10:16:25
+LastEditTime: 2021-09-10 17:48:40
 FilePath: /PCDet/pcdet/models/dense_heads/point_head_simple.py
 '''
 import torch
@@ -26,7 +26,7 @@ class PointHeadSimple(PointHeadTemplate):
             input_channels=input_channels,
             output_channels=num_class
         )
-    # ？？？？？？？/
+    #  只分割前景点和后景点
     def assign_targets(self, input_dict):
         """
         Args:

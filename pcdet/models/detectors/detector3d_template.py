@@ -32,7 +32,7 @@ class Detector3DTemplate(nn.Module): # 【 参数都是从train.py传过来的�
         self.global_step += 1
     # PVRCNN 使用   self.module_list = self.build_networks() # 
     def build_networks(self):
-        model_info_dict = {#参数
+        model_info_dict = {# 通过处理数据集和参数配置得到的数据，用于后面的模型输入
             'module_list': [],  #使用的模型（各个模块）
             'num_rawpoint_features': self.dataset.point_feature_encoder.num_point_features, #点云特征(__init__已经获取到数值)
             'num_point_features': self.dataset.point_feature_encoder.num_point_features, # (__init__已经获取到数值)
