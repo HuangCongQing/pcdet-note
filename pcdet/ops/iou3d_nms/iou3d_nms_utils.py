@@ -1,5 +1,5 @@
 """
-3D IoU Calculation and Rotated NMS
+3D IoU Calculation and Rotated NMS 3DIoU计算和旋转NMS
 Written by Shaoshuai Shi
 All Rights Reserved 2019-2020.
 """
@@ -8,7 +8,7 @@ import torch
 from ...utils import common_utils
 from . import iou3d_nms_cuda
 
-
+# cpu版本
 def boxes_bev_iou_cpu(boxes_a, boxes_b):
     """
     Args:
@@ -44,7 +44,7 @@ def boxes_iou_bev(boxes_a, boxes_b):
 
     return ans_iou
 
-
+# 有用到
 def boxes_iou3d_gpu(boxes_a, boxes_b):
     """
     Args:

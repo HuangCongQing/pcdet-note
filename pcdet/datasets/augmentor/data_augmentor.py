@@ -5,7 +5,7 @@ import numpy as np
 from ...utils import common_utils
 from . import augmentor_utils, database_sampler
 
-
+# 数据增强类
 class DataAugmentor(object):
     def __init__(self, root_path, augmentor_configs, class_names, logger=None):
         self.root_path = root_path
@@ -13,6 +13,7 @@ class DataAugmentor(object):
         self.logger = logger
 
         self.data_augmentor_queue = []
+        # 默认有四种数据增强方法:tools/cfgs/kitti_models/pointpillar.yaml
         aug_config_list = augmentor_configs if isinstance(augmentor_configs, list) \
             else augmentor_configs.AUG_CONFIG_LIST
 
@@ -39,7 +40,7 @@ class DataAugmentor(object):
 
     def __setstate__(self, d):
         self.__dict__.update(d)
-   
+    # 数据修改的是gt_boxes和points!!!!!
     def random_world_flip(self, data_dict=None, config=None):
         if data_dict is None:
             return partial(self.random_world_flip, config=config)
@@ -89,7 +90,7 @@ class DataAugmentor(object):
 
         Returns:
         """
-        for cur_augmentor in self.data_augmentor_queue:
+        for cur_augmentor in self.data_augmentor_queue: # （由默认的3个gt_boxes增加到33个）  data_augmentor_queue 默认有四种数据增强方法
             data_dict = cur_augmentor(data_dict=data_dict)
 
         data_dict['gt_boxes'][:, 6] = common_utils.limit_period(

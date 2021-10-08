@@ -10,16 +10,16 @@ from ..backbones_3d import pfe, vfe # pfe和vfe文件夹
 from ..model_utils import model_nms_utils # nms??
 
 
-class Detector3DTemplate(nn.Module):
+class Detector3DTemplate(nn.Module): # 【 参数都是从train.py传过来的】
     def __init__(self, model_cfg, num_class, dataset):
         super().__init__()
-        self.model_cfg = model_cfg  # 模型参数，model_cfg=cfg.MODEL 举例：pv_rcnn！！！！！！！！！！！！！！！！！！！！！！！！！！！！
-        self.num_class = num_class
-        self.dataset = dataset
-        self.class_names = dataset.class_names
+        self.model_cfg = model_cfg  # yaml中的MODEL模型参数，model_cfg=cfg.MODEL 举例：pv_rcnn！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+        self.num_class = num_class # 3
+        self.dataset = dataset # dataset=train_set 【 参数都是从train.py传过来的】    KittiDataset: 3712  class KittiDataset(DatasetTemplate):（ /pcdet/datasets/kitti/kitti_dataset.py ）
+        self.class_names = dataset.class_names # ['Car', 'Pedestrian', 'Cyclist']
         self.register_buffer('global_step', torch.LongTensor(1).zero_())
 
-        self.module_topology = [ # 储存了网络中的每一个模块
+        self.module_topology = [ # 储存了网络中的每一个模块（具体的莫模型(比如pointpillars)会用其中的几个）
             'vfe', 'backbone_3d', 'map_to_bev_module', 'pfe', # vfe表示voxel_feature，pfe表示point_feature
             'backbone_2d', 'dense_head',  'point_head', 'roi_head' # dense_head处理backbone_2d， point_head处理pfe数据，roi_head处理dense_head（RPN head）和point_head
         ]# 
@@ -32,7 +32,7 @@ class Detector3DTemplate(nn.Module):
         self.global_step += 1
     # PVRCNN 使用   self.module_list = self.build_networks() # 
     def build_networks(self):
-        model_info_dict = {#参数
+        model_info_dict = {# 通过处理数据集和参数配置得到的数据，用于后面的模型输入
             'module_list': [],  #使用的模型（各个模块）
             'num_rawpoint_features': self.dataset.point_feature_encoder.num_point_features, #点云特征(__init__已经获取到数值)
             'num_point_features': self.dataset.point_feature_encoder.num_point_features, # (__init__已经获取到数值)
@@ -40,6 +40,13 @@ class Detector3DTemplate(nn.Module):
             'point_cloud_range': self.dataset.point_cloud_range, #点云范围 (__init__已经获取到数值)
             'voxel_size': self.dataset.voxel_size #体素大小 (__init__已经获取到数值)
         }
+        # 在Detector3DTemplate中继承的，module_topology储存了网络中的每一个module
+        """ 
+        
+            self.module_topology = [ 
+            'vfe', 'backbone_3d', 'map_to_bev_module', 'pfe',
+            'backbone_2d', 'dense_head',  'point_head', 'roi_head'  ]
+         """
         for module_name in self.module_topology: # 上文line  22   {list: 8} 在Detector3DTemplate中继承的   module_topology储存了网络中的每一个module
             module, model_info_dict = getattr(self, 'build_%s' % module_name)( # # getattr() 函数用于返回一个对象属性值，将build_module_name返回给了module
                 model_info_dict=model_info_dict # 上文参数
@@ -51,8 +58,8 @@ class Detector3DTemplate(nn.Module):
         if self.model_cfg.get('VFE', None) is None: # model_cfg=cfg.MODEL ！！！！！！！！！！！！
             return None, model_info_dict # None 返回空
         # __all__定义在每个模块的__init__.py中
-        vfe_module = vfe.__all__[self.model_cfg.VFE.NAME]( # example： NAME: MeanVFE
-            model_cfg=self.model_cfg.VFE,
+        vfe_module = vfe.__all__[self.model_cfg.VFE.NAME]( # example： NAME: MeanVFE   NAME: PillarVFE   pcdet/models/backbones_3d/vfe/pillar_vfe.py 
+            model_cfg=self.model_cfg.VFE, # 
             num_point_features=model_info_dict['num_rawpoint_features'],
             point_cloud_range=model_info_dict['point_cloud_range'],
             voxel_size=model_info_dict['voxel_size']
@@ -164,7 +171,7 @@ class Detector3DTemplate(nn.Module):
 
     def forward(self, **kwargs):
         raise NotImplementedError
-    #   后处理 引用： 【pv_rcnn.py】推理  pred_dicts, recall_dicts = self.post_processing(batch_dict) 
+    #   预测阶段: 后处理 引用： 【pv_rcnn.py】推理  pred_dicts, recall_dicts = self.post_processing(batch_dict) 
     # https://blog.csdn.net/weixin_44579633/article/details/107542954#t6
     def post_processing(self, batch_dict):
         """
@@ -195,7 +202,7 @@ class Detector3DTemplate(nn.Module):
                 assert batch_dict['batch_box_preds'].shape.__len__() == 3
                 batch_mask = index
 
-            box_preds = batch_dict['batch_box_preds'][batch_mask] # 边框的预测
+            box_preds = batch_dict['batch_box_preds'][batch_mask] # 边框的预测====================
             src_box_preds = box_preds
 
             if not isinstance(batch_dict['batch_cls_preds'], list):
@@ -250,7 +257,7 @@ class Detector3DTemplate(nn.Module):
                     label_preds = batch_dict[label_key][index]
                 else:  # 如果没有class标签的话，预测索引+1（下一个循环）
                     label_preds = label_preds + 1
-                selected, selected_scores = model_nms_utils.class_agnostic_nms(  # 非极大值抑制   ==========用到了两个关键函数分别是class_agnostic_nms和generate_recall_record=============
+                selected, selected_scores = model_nms_utils.class_agnostic_nms(  # nms非极大值抑制   ==========用到了两个关键函数分别是class_agnostic_nms和generate_recall_record=============
                     box_scores=cls_preds, box_preds=box_preds, # 分类的预测价值，边框的预测价值
                     nms_config=post_process_cfg.NMS_CONFIG,  #配置参数
                     score_thresh=post_process_cfg.SCORE_THRESH  #阈值
@@ -260,10 +267,11 @@ class Detector3DTemplate(nn.Module):
                     max_cls_preds, _ = torch.max(src_cls_preds, dim=-1)  # 预测值的最大值 分类
                     selected_scores = max_cls_preds[selected]
 
-                final_scores = selected_scores  #最终分数
-                final_labels = label_preds[selected]  #最终标签
-                final_boxes = box_preds[selected]  #最终预测框
+                final_scores = selected_scores  #最终分数！！！！！！！！！！！！！！！！！！！！！
+                final_labels = label_preds[selected]  #最终标签！！！！！！！！！！！！
+                final_boxes = box_preds[selected]  #最终预测框！！！！！！！！！！！！！！！！
 
+            # #Recall 是用来计算被正确识别出来的个数与测试集中所有个数的比值
             recall_dict = self.generate_recall_record(  # =====================其中用到了两个关键函数分别是class_agnostic_nms和generate_recall_record============================
                 box_preds=final_boxes if 'rois' not in batch_dict else src_box_preds,
                 recall_dict=recall_dict, batch_index=index, data_dict=batch_dict,
@@ -275,18 +283,18 @@ class Detector3DTemplate(nn.Module):
             else: #如果rois本来就在数据中
                 box_preds=src_box_preds, #就选取数据中的结果batch_dict['batch_box_preds']
             '''
-
-            record_dict = { #Recall 是用来计算被正确识别出来的个数与测试集中所有个数的比值
+            # 得到boxes，scores，labels 这三个参数最后会可视化出来
+            record_dict = { 
                 'pred_boxes': final_boxes,
                 'pred_scores': final_scores,
                 'pred_labels': final_labels
             }
             pred_dicts.append(record_dict) # 
 
-        return pred_dicts, recall_dict # 返回
+        return pred_dicts, recall_dict # 返回 # 预测结束,返回结果
 
     @staticmethod
-    def generate_recall_record(box_preds, recall_dict, batch_index, data_dict=None, thresh_list=None): ####
+    def generate_recall_record(box_preds, recall_dict, batch_index, data_dict=None, thresh_list=None): #### 重要函数
         if 'gt_boxes' not in data_dict:
             return recall_dict
 
@@ -313,12 +321,12 @@ class Detector3DTemplate(nn.Module):
 
         if cur_gt.shape[0] > 0:
             if box_preds.shape[0] > 0:
-                iou3d_rcnn = iou3d_nms_utils.boxes_iou3d_gpu(box_preds[:, 0:7], cur_gt[:, 0:7])
+                iou3d_rcnn = iou3d_nms_utils.boxes_iou3d_gpu(box_preds[:, 0:7], cur_gt[:, 0:7]) # 
             else:
                 iou3d_rcnn = torch.zeros((0, cur_gt.shape[0]))
 
             if rois is not None:
-                iou3d_roi = iou3d_nms_utils.boxes_iou3d_gpu(rois[:, 0:7], cur_gt[:, 0:7])
+                iou3d_roi = iou3d_nms_utils.boxes_iou3d_gpu(rois[:, 0:7], cur_gt[:, 0:7]) # pcdet/ops/iou3d_nms/iou3d_nms_utils.py
 
             for cur_thresh in thresh_list:
                 if iou3d_rcnn.shape[0] == 0:

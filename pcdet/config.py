@@ -1,3 +1,13 @@
+'''
+Description: 解析yaml文件的config和公用的config
+Author: HCQ
+Company(School): UCAS
+Email: 1756260160@qq.com
+Date: 2021-08-03 09:26:49
+LastEditTime: 2021-09-10 15:00:22
+FilePath: /PCDet/pcdet/config.py
+'''
+
 from pathlib import Path
 
 import yaml

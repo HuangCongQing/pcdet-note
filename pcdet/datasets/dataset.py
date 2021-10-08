@@ -132,11 +132,12 @@ class DatasetTemplate(torch_data.Dataset):
                 voxel_num_points: optional (num_voxels)
                 ...
         """
-        # # 训练模式下，对存在于class_name中的数据进行增强
+        # # 训练模式下，对存在于class_name中的数据进行增强（由默认的3个gt_boxes增加到33个）
         if self.training:
             assert 'gt_boxes' in data_dict, 'gt_boxes should be provided for training'
             # 返回一个bool数组，记录自定义数据集中ground_truth_name列表在不在我们需要检测的类别列表self.class_name里面
             # 比如kitti数据集中data_dict['gt_names']=['car','person','cyclist']，self.class_name='car',则gt_boxes_mask=[True, False, False]
+            # [n for n in data_dict['gt_names']] value:  ['Car', 'Car']
             gt_boxes_mask = np.array([n in self.class_names for n in data_dict['gt_names']], dtype=np.bool_)
 
             # 数据增强 传入字典参数，**data_dict是将data_dict里面的key-value对都拿出来

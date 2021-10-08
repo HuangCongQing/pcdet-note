@@ -15,7 +15,7 @@ import sys
 sys.path.append('..')
 from pcdet.config import cfg, cfg_from_list, cfg_from_yaml_file, log_config_to_file
 from pcdet.datasets import build_dataloader # 数据 pcdet/datasets/__init__.py
-from pcdet.models import build_network, model_fn_decorator # 模型
+from pcdet.models import build_network, model_fn_decorator # 模型和损失函数
 from pcdet.utils import common_utils
 from train_utils.optimization import build_optimizer, build_scheduler # 优化器
 from train_utils.train_utils import train_model
@@ -60,7 +60,7 @@ def parse_config():
 
 
 def main():
-    args, cfg = parse_config()
+    args, cfg = parse_config() # 参数
     if args.launcher == 'none':
         dist_train = False
         total_gpus = 1
@@ -106,7 +106,7 @@ def main():
 
     # -----------------------create dataloader & network & optimizer---------------------------
     # 数据集create dataloader
-    train_set, train_loader, train_sampler = build_dataloader(
+    train_set, train_loader, train_sampler = build_dataloader( # pcdet/datasets/__init__.py
         dataset_cfg=cfg.DATA_CONFIG,
         class_names=cfg.CLASS_NAMES,
         batch_size=args.batch_size,
@@ -116,11 +116,11 @@ def main():
         merge_all_iters_to_one_epoch=args.merge_all_iters_to_one_epoch,
         total_epochs=args.epochs
     )
-    # 模型build_network
-    model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=train_set)
+    # 模型build_network   调用的这些包就是pcdet/models/detectors下的某个py文件，# class PointPillar(Detector3DTemplate): # class PVRCNN(Detector3DTemplate):
+    model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=train_set) # # model_cfg.NAME:   'PVRCNN'      class PVRCNN(Detector3DTemplate):
     if args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-    model.cuda()
+    model.cuda()   # cuda( ) 和 train( ) 都是数据处理
     # optimizer优化器
     optimizer = build_optimizer(model, cfg.OPTIMIZATION)
 
@@ -142,7 +142,7 @@ def main():
             )
             last_epoch = start_epoch + 1
 
-    model.train()  # before wrap to DistributedDataParallel to support fixed some parameters
+    model.train()    # cuda( ) 和 train( ) 都是数据处理 # before wrap to DistributedDataParallel to support fixed some parameters=======================训练标志======================
     if dist_train:
         model = nn.parallel.DistributedDataParallel(model, device_ids=[cfg.LOCAL_RANK % torch.cuda.device_count()])
     logger.info(model)
@@ -159,7 +159,7 @@ def main():
         model,  # 模型
         optimizer,
         train_loader,  # 数据
-        model_func=model_fn_decorator(),
+        model_func=model_fn_decorator(),  # 返回损失 loss, tb_dict, disp_dict
         lr_scheduler=lr_scheduler,
         optim_cfg=cfg.OPTIMIZATION,
         start_epoch=start_epoch,

@@ -17,24 +17,25 @@ class AnchorHeadTemplate(nn.Module):
         self.predict_boxes_when_training = predict_boxes_when_training
         self.use_multihead = self.model_cfg.get('USE_MULTIHEAD', False)
 
-        anchor_target_cfg = self.model_cfg.TARGET_ASSIGNER_CONFIG
+        anchor_target_cfg = self.model_cfg.TARGET_ASSIGNER_CONFIG # 检测头  目标分配器配置
         self.box_coder = getattr(box_coder_utils, anchor_target_cfg.BOX_CODER)(
             num_dir_bins=anchor_target_cfg.get('NUM_DIR_BINS', 6),
             **anchor_target_cfg.get('BOX_CODER_CONFIG', {})
         )
 
-        anchor_generator_cfg = self.model_cfg.ANCHOR_GENERATOR_CONFIG
-        anchors, self.num_anchors_per_location = self.generate_anchors(
+        anchor_generator_cfg = self.model_cfg.ANCHOR_GENERATOR_CONFIG # 三类配置 Car ，Pedestrian，Cyclist
+        anchors, self.num_anchors_per_location = self.generate_anchors( # 生成anchors
             anchor_generator_cfg, grid_size=grid_size, point_cloud_range=point_cloud_range,
             anchor_ndim=self.box_coder.code_size
         )
-        self.anchors = [x.cuda() for x in anchors]
-        self.target_assigner = self.get_target_assigner(anchor_target_cfg)
+        self.anchors = [x.cuda() for x in anchors] # 
+        # 
+        self.target_assigner = self.get_target_assigner(anchor_target_cfg) #  目标分配器配置
 
-        self.forward_ret_dict = {}
-        self.build_losses(self.model_cfg.LOSS_CONFIG)
+        self.forward_ret_dict = {} # 空
+        self.build_losses(self.model_cfg.LOSS_CONFIG)  # 添加三个loss模块 ,分类,回归和朝向
 
-    @staticmethod
+    @staticmethod   # 生成anchors
     def generate_anchors(anchor_generator_cfg, grid_size, point_cloud_range, anchor_ndim=7):
         anchor_generator = AnchorGenerator(
             anchor_range=point_cloud_range,
@@ -51,16 +52,16 @@ class AnchorHeadTemplate(nn.Module):
 
         return anchors_list, num_anchors_per_location_list
 
-    def get_target_assigner(self, anchor_target_cfg):
-        if anchor_target_cfg.NAME == 'ATSS':
+    def get_target_assigner(self, anchor_target_cfg): #  anchor_target_cfg 目标分配器配置
+        if anchor_target_cfg.NAME == 'ATSS': # 
             target_assigner = ATSSTargetAssigner(
                 topk=anchor_target_cfg.TOPK,
                 box_coder=self.box_coder,
                 use_multihead=self.use_multihead,
                 match_height=anchor_target_cfg.MATCH_HEIGHT
             )
-        elif anchor_target_cfg.NAME == 'AxisAlignedTargetAssigner':
-            target_assigner = AxisAlignedTargetAssigner(
+        elif anchor_target_cfg.NAME == 'AxisAlignedTargetAssigner':  # NAME: AxisAlignedTargetAssigner   # pointpillar.yaml使用了这个参数
+            target_assigner = AxisAlignedTargetAssigner( # pcdet/models/dense_heads/target_assigner/axis_aligned_target_assigner.py
                 model_cfg=self.model_cfg,
                 class_names=self.class_names,
                 box_coder=self.box_coder,
@@ -69,23 +70,23 @@ class AnchorHeadTemplate(nn.Module):
         else:
             raise NotImplementedError
         return target_assigner
-
+    # 添加三个loss模块
     def build_losses(self, losses_cfg):
         self.add_module(
-            'cls_loss_func',
-            loss_utils.SigmoidFocalClassificationLoss(alpha=0.25, gamma=2.0)
+            'cls_loss_func', # 分类损失 Focal Loss
+            loss_utils.SigmoidFocalClassificationLoss(alpha=0.25, gamma=2.0) # focalloss     pcdet/utils/loss_utils.py
         )
         reg_loss_name = 'WeightedSmoothL1Loss' if losses_cfg.get('REG_LOSS_TYPE', None) is None \
             else losses_cfg.REG_LOSS_TYPE
         self.add_module(
-            'reg_loss_func',
+            'reg_loss_func', # 回归损失Smooth L1
             getattr(loss_utils, reg_loss_name)(code_weights=losses_cfg.LOSS_WEIGHTS['code_weights'])
         )
         self.add_module(
-            'dir_loss_func',
+            'dir_loss_func',  # 朝向损失 由于localization loss不能区分box的  , 所以加上direction loss.
             loss_utils.WeightedCrossEntropyLoss()
         )
-
+    # 
     def assign_targets(self, gt_boxes):
         """
         Args:
@@ -93,7 +94,7 @@ class AnchorHeadTemplate(nn.Module):
         Returns:
 
         """
-        targets_dict = self.target_assigner.assign_targets(
+        targets_dict = self.target_assigner.assign_targets( # 
             self.anchors, gt_boxes
         )
         return targets_dict
@@ -117,6 +118,8 @@ class AnchorHeadTemplate(nn.Module):
         cared = box_cls_labels >= 0  # [N, num_anchors]  ，我们只关心>=0标签的box
         positives = box_cls_labels > 0 # 标签>0 正样本
         negatives = box_cls_labels == 0 # 标签=0 负样本
+        # 上面的输出可以看到box_cls_labels几乎全是0，其实不然，里面还有非常少的-1，1，2，3。
+        # 1：本是Car标签，这里是将IOU大于某一阈值的anchor的标签值赋予1，是Car的正样本标签。2：Pedestrian。3：Cyclists。
         negative_cls_weights = negatives * 1.0 # 负样本类别权重，0变1
         cls_weights = (negative_cls_weights + 1.0 * positives).float()  # 正负样本全部变1、2，3
         reg_weights = positives.float() # 只保留标签>0的值
@@ -138,7 +141,7 @@ class AnchorHeadTemplate(nn.Module):
         one_hot_targets.scatter_(-1, cls_targets.unsqueeze(dim=-1).long(), 1.0)    # 转为one-hot类型
         cls_preds = cls_preds.view(batch_size, -1, self.num_class)  # [3, 321408, 3]
         one_hot_targets = one_hot_targets[..., 1:]  # [3, 321408, 3]  只有0和1，1大约有150±30个左右
-        cls_loss_src = self.cls_loss_func(cls_preds, one_hot_targets, weights=cls_weights)  # [N, M]
+        cls_loss_src = self.cls_loss_func(cls_preds, one_hot_targets, weights=cls_weights)  # [N, M]  # 计算focal loss( pcdet/utils/loss_utils.py)==================================
         cls_loss = cls_loss_src.sum() / batch_size
 
         cls_loss = cls_loss * self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['cls_weight']  # 损失权重，cls_weight：1.0
@@ -146,7 +149,7 @@ class AnchorHeadTemplate(nn.Module):
         tb_dict = {
             'rpn_loss_cls': cls_loss.item()
         }
-        return cls_loss, tb_dict
+        return cls_loss, tb_dict # 返回分类损失
 
     @staticmethod
     def add_sin_difference(boxes1, boxes2, dim=6):
@@ -172,17 +175,17 @@ class AnchorHeadTemplate(nn.Module):
             dir_targets.scatter_(-1, dir_cls_targets.unsqueeze(dim=-1).long(), 1.0)
             dir_cls_targets = dir_targets
         return dir_cls_targets
-    # ----------------------------------- 计算box 位置 loss  https://blog.csdn.net/W1995S/article/details/115399145 --------------------------------
+    # ----------------------------------- 计算box 位置回归loss box_loss(位置损失 + 方向(c朝向角)损失)  https://blog.csdn.net/W1995S/article/details/115399145 --------------------------------
     def get_box_reg_layer_loss(self):
         box_preds = self.forward_ret_dict['box_preds']   # 位置预测结果 [N, H, W, C2] = [3, 248, 216, 42] # 来源:     self.forward_ret_dict['cls_preds'] = cls_preds  pcdet/models/dense_heads/anchor_head_single.py
         box_dir_cls_preds = self.forward_ret_dict.get('dir_cls_preds', None)  # 方向、类别预测结果 [N, H, W, C3] = [3,248,216,12]  12??????????????
-        box_reg_targets = self.forward_ret_dict['box_reg_targets'] # box回归目标 [3, 321408, 7]
-        box_cls_labels = self.forward_ret_dict['box_cls_labels']  # box类别标签 [3, 321408]   (num_anchors ： 321408 = 107136 x 3，3帧点云(batch_size)，每一帧点云生成107136 = 248 x 216 x 2个anchor。)
+        box_reg_targets = self.forward_ret_dict['box_reg_targets'] # GT box回归目标 [3, 321408, 7]
+        box_cls_labels = self.forward_ret_dict['box_cls_labels']  # GT box类别标签 [3, 321408]   (num_anchors ： 321408 = 107136 x 3，3帧点云(batch_size)，每一帧点云生成107136 = 248 x 216 x 2个anchor。)
         """ 
         torch.Size([3, 248, 216, 42]) # 位置预测结果 [N, H, W, C2]
         torch.Size([3, 248, 216, 12]) # 方向预测结果 [N, H, W, C3]
-        torch.Size([3, 321408, 7]) # box回归目标
-        torch.Size([3, 321408]) # box类别标签
+        torch.Size([3, 321408, 7]) # box回归目标 GT
+        torch.Size([3, 321408]) # box类别标签 GT
 
         数字解释：
             42：3帧点云，每一帧每个位置有14个预测值，14 = 7 x 2 ，2个anchor，7个回归坐标。
@@ -234,7 +237,7 @@ class AnchorHeadTemplate(nn.Module):
             dir_logits = box_dir_cls_preds.view(batch_size, -1, self.model_cfg.NUM_DIR_BINS)   # 方向预测值 [3, 321408, 2]
             weights = positives.type_as(dir_logits)   # 只要正样本的方向预测值
             weights /= torch.clamp(weights.sum(-1, keepdim=True), min=1.0)  # [3, 321408]
-            dir_loss = self.dir_loss_func(dir_logits, dir_targets, weights=weights)
+            dir_loss = self.dir_loss_func(dir_logits, dir_targets, weights=weights) # 朝向loss===================================================
             dir_loss = dir_loss.sum() / batch_size
             dir_loss = dir_loss * self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['dir_weight']  # 损失权重，dir_weight: 0.2
             # 总的位置损失==============================
@@ -245,14 +248,14 @@ class AnchorHeadTemplate(nn.Module):
     # -------------------------------------- 获得损失 --------------------------------------
     def get_loss(self): #  pv_rcnn.py引用   loss_rpn, tb_dict = self.dense_head.get_loss() #
         cls_loss, tb_dict = self.get_cls_layer_loss()   # 计算classification loss    函数来源于下面   def get_cls_layer_loss(self):
-        box_loss, tb_dict_box = self.get_box_reg_layer_loss() # 计算box regression loss
+        box_loss, tb_dict_box = self.get_box_reg_layer_loss() # 计算回归box regression loss
         tb_dict.update(tb_dict_box)
         rpn_loss = cls_loss + box_loss #  区域提案RPN region proposal loss 是以上两个loss的和=============================
         print("rpn_loss:", rpn_loss)
 
         tb_dict['rpn_loss'] = rpn_loss.item()# rpn损失
         return rpn_loss, tb_dict # 
-
+    # 生成预测框
     def generate_predicted_boxes(self, batch_size, cls_preds, box_preds, dir_cls_preds=None):
         """
         Args:

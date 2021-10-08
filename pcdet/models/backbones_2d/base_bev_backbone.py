@@ -107,6 +107,23 @@ class BaseBEVBackbone(nn.Module):
         if len(self.deblocks) > len(self.blocks):
             x = self.deblocks[-1](x)
 
-        data_dict['spatial_features_2d'] = x
+        data_dict['spatial_features_2d'] = x  # torch.Size([3, 384, 248, 216]) # 2D卷积，上下采样连接后的 (batch_size，6C，H/2，W/2)
 
         return data_dict
+''' 
+一个 data_dict：
+'batch_size'：        3  # 3帧点云
+'points'              torch.Size([69375, 5])  # 点数目可变 猜测(? x y z r)
+'frame_id'            (3,)  # 帧编号
+'gt_boxes'            torch.Size([3, 40, 8])  # 3帧点，好像每帧最多40个ground truth，[x, y, z, 长dx, 宽dy, 高dz, 角度heading, 标签？]
+'use_lead_xyz'        torch.Size([3])  # ？
+'voxels'              torch.Size([17842, 32, 4]) # 体素
+'voxel_coords'        torch.Size([17842, 4]) # 体素坐标
+'voxel_num_points'    torch.Size([17842])  # 体素点数
+'image_shape'         (3, 2) # 图像尺寸
+'pillar_features'     torch.Size([17842, 64])  # pillar特征（C, P）的Tensor，特征维度C=64，Pillar非空P=17842个
+'spatial_features'    torch.Size([3, 64, 496, 432])  # (batch_size，C，H，W)，其实C H W是固定的
+
+'spatial_features_2d' torch.Size([3, 384, 248, 216]) # 2D卷积，上下采样连接后的 (batch_size，6C，H/2，W/2)  #==========================================
+
+ '''

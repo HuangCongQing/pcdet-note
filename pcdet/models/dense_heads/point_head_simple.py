@@ -1,3 +1,12 @@
+'''
+Description:  只分割前景点和后景点
+Author: HCQ
+Company(School): UCAS
+Email: 1756260160@qq.com
+Date: 2021-08-03 09:26:49
+LastEditTime: 2021-09-10 17:48:40
+FilePath: /PCDet/pcdet/models/dense_heads/point_head_simple.py
+'''
 import torch
 
 from ...utils import box_utils
@@ -17,7 +26,7 @@ class PointHeadSimple(PointHeadTemplate):
             input_channels=input_channels,
             output_channels=num_class
         )
-
+    #  只分割前景点和后景点
     def assign_targets(self, input_dict):
         """
         Args:
@@ -84,7 +93,7 @@ class PointHeadSimple(PointHeadTemplate):
         batch_dict['point_cls_scores'], _ = point_cls_scores.max(dim=-1)
 
         if self.training:
-            targets_dict = self.assign_targets(batch_dict)
+            targets_dict = self.assign_targets(batch_dict) #
             ret_dict['point_cls_labels'] = targets_dict['point_cls_labels'] # label
         self.forward_ret_dict = ret_dict
 

@@ -1,10 +1,10 @@
 import numpy as np
 import torch
-# 参考：https://blog.csdn.net/W1995S/article/details/115413428
+# 参考：pointpillar anchor匹配 https://blog.csdn.net/W1995S/article/details/115413428
 from ....ops.iou3d_nms import iou3d_nms_utils
 from ....utils import box_utils
 
-
+# ？？？？？
 class AxisAlignedTargetAssigner(object):
     def __init__(self, model_cfg, class_names, box_coder, match_height=False):
         super().__init__()
@@ -12,7 +12,7 @@ class AxisAlignedTargetAssigner(object):
         anchor_generator_cfg = model_cfg.ANCHOR_GENERATOR_CONFIG
         anchor_target_cfg = model_cfg.TARGET_ASSIGNER_CONFIG
         self.box_coder = box_coder
-        self.match_height = match_height
+        self.match_height = match_height #????
         self.class_names = np.array(class_names)
         self.anchor_class_names = [config['class_name'] for config in anchor_generator_cfg]
         self.pos_fraction = anchor_target_cfg.POS_FRACTION if anchor_target_cfg.POS_FRACTION >= 0 else None
@@ -80,7 +80,7 @@ class AxisAlignedTargetAssigner(object):
                     anchors = anchors.view(-1, anchors.shape[-1])
                     selected_classes = cur_gt_classes[mask]
 
-                single_target = self.assign_targets_single(
+                single_target = self.assign_targets_single( # line 132   IOU计算=========================================
                     anchors,
                     cur_gt[mask],
                     gt_classes=selected_classes,
@@ -121,28 +121,31 @@ class AxisAlignedTargetAssigner(object):
 
         cls_labels = torch.stack(cls_labels, dim=0)
         reg_weights = torch.stack(reg_weights, dim=0)
-        all_targets_dict = {
+        all_targets_dict = {  # 得到的『预测』 的结果
             'box_cls_labels': cls_labels,
             'box_reg_targets': bbox_targets,
             'reg_weights': reg_weights
 
         }
         return all_targets_dict
-    # # 分配目标   https://blog.csdn.net/W1995S/article/details/115486685
+    # pointpillar IOU计算   https://blog.csdn.net/W1995S/article/details/115486685
     def assign_targets_single(self, anchors, gt_boxes, gt_classes, matched_threshold=0.6, unmatched_threshold=0.45):
         # Car：匹配使用0.6和0.45的正负样本阈值
-        # anchors：[107136, 7]
+        # anchors：[107136, 7] 
         # gt_boxes：[num, 7]
         # gt_classes：[1, num] ,Car:全是1、Pedestrian:全是2、Cyclist:全是3 , gt_boxes的类别标签
-        num_anchors = anchors.shape[0]  # 107136
+        num_anchors = anchors.shape[0]  # 107136(248 x 216 x 2)  anchor的数量   2种角度：0°、90°   torch.Size([107136, 7]) 
+        # anchors：[107136, 7] backbone之后的feature map是[batch_size，6C, H/2=248, W/2=216]，每个位置产生2种角度（0°、90°）的anchor，248 x 216 x 2 = 107136。
         num_gt = gt_boxes.shape[0] # 不固定
 
         labels = torch.ones((num_anchors,), dtype=torch.int32, device=anchors.device) * -1  # [-1, -1, -1,  ...] [107136, 1]
         gt_ids = torch.ones((num_anchors,), dtype=torch.int32, device=anchors.device) * -1  # [-1, -1, -1,  ...] [107136, 1]
-        # IOU 计算  https://blog.csdn.net/W1995S/article/details/115413428
+        #pointpillar anchor匹配  https://blog.csdn.net/W1995S/article/details/115413428
+        #  # IOU 计算
         if len(gt_boxes) > 0 and anchors.shape[0] > 0:
+            # 计算IOU
             anchor_by_gt_overlap = iou3d_nms_utils.boxes_iou3d_gpu(anchors[:, 0:7], gt_boxes[:, 0:7]) \
-                if self.match_height else box_utils.boxes3d_nearest_bev_iou(anchors[:, 0:7], gt_boxes[:, 0:7]) # boxes3d_nearest_bev_iou???
+                if self.match_height else box_utils.boxes3d_nearest_bev_iou(anchors[:, 0:7], gt_boxes[:, 0:7]) # boxes3d_nearest_bev_iou使用的2D 的IOUboxes_iou_normal    pcdet/utils/box_utils.py
 
             # (cx, cy, cz) 为物体3D框的几何中心位置，(dx, dy, dz)分别为物体3D框在heading角度为0时沿着x-y-z三个方向的长度，heading为物体在俯视图下的朝向角
             # anchors[:, 0:7]  #(cx, cy, cz, dx, dy, dz, heading)    torch.Size([107136, 7])  # 固定107136个anchor，2种角度：0°、90°

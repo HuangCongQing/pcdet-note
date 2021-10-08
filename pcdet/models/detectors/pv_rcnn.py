@@ -4,7 +4,7 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2021-05-02 23:48:58
-LastEditTime: 2021-06-20 21:37:11
+LastEditTime: 2021-09-06 10:42:12
 FilePath: /PCDet/pcdet/models/detectors/pv_rcnn.py
 '''
 from .detector3d_template import Detector3DTemplate
@@ -37,7 +37,7 @@ class PVRCNN(Detector3DTemplate):
             pred_dicts, recall_dicts = self.post_processing(batch_dict) # #关键函数2===================local： pcdet/models/detectors/detector3d_template.py====================================
             return pred_dicts, recall_dicts
     # 关键函数1==========================================================
-    def get_training_loss(self): #  self是PVRNN各个模块网络！！！！！！！！！！！
+    def get_training_loss(self): #  self继承子Detector3DTemplate.py中的是PVRNN各个模块网络！！！！！！！！！！！
         disp_dict = {}
         loss_rpn, tb_dict = self.dense_head.get_loss() #  def get_loss(self): models/dense_heads/anchor_head_template.py 245行
         # loss_rpn = cls_loss + box_loss

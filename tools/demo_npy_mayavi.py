@@ -4,7 +4,7 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2021-05-02 23:48:58
-LastEditTime: 2021-08-07 15:36:10
+LastEditTime: 2021-09-10 14:46:46
 FilePath: /PCDet/tools/demo_npy_mayavi.py
 '''
 import argparse
@@ -52,6 +52,13 @@ pred_scores = np.load("/home/hcq/下载/npy/pred_scores.npy", allow_pickle=True)
 # for i  in range(3,6):
 #     pred_boxes[:,i]  = pred_boxes[:,i] * rela_dis[i-3]
 
+idx = np.argwhere(pred_scores>=0.55) # 得到下标  设置显示阈值
+idx = idx[:, 0] # array([0, 1, 2, 3, 4, 5, 6, 7, 8])
+# print(idx[:, 0])
+pred_boxes = pred_boxes[idx]
+pred_labels = pred_labels[idx]
+pred_scores = pred_scores[idx]
+# print(pred_scores)
 print('Number of label:{}'.format(len(pred_labels))) #
 labels = ['None', 'Car', 'Pedestrian', 'Cyclists']
 for i in range(4):
@@ -75,6 +82,3 @@ V.draw_scenes(
 #     ref_scores=None, ref_labels=None
 # )
 mlab.show(stop=True)
-
-
-

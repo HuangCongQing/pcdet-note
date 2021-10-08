@@ -4,7 +4,7 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2021-05-02 23:48:58
-LastEditTime: 2021-08-03 15:29:22
+LastEditTime: 2021-09-05 23:46:20
 FilePath: /PCDet/tools/demo.py
 '''
 import argparse
@@ -98,7 +98,7 @@ def main():
     model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True) 
     # cuda( ) 和 eval( ) 都是数据处理
     model.cuda()
-    model.eval()
+    model.eval() # 测试
 
     # torch.no_grad( ) 的目的是使得其中的数据不需要计算梯度，也不会进行反向传播
     with torch.no_grad():
