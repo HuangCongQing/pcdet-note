@@ -20,7 +20,7 @@ from pcdet.utils import common_utils
 from train_utils.optimization import build_optimizer, build_scheduler # 优化器
 from train_utils.train_utils import train_model
 
-# os.environ["CUDA_VISIBLE_DEVICES"] =  "5"
+os.environ["CUDA_VISIBLE_DEVICES"] =  "0,1"
 
 def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
@@ -92,7 +92,7 @@ def main():
     # log to file
     logger.info('**********************Start logging**********************')
     gpu_list = os.environ['CUDA_VISIBLE_DEVICES'] if 'CUDA_VISIBLE_DEVICES' in os.environ.keys() else 'ALL'
-    logger.info('CUDA_VISIBLE_DEVICES=%s' % gpu_list)
+    logger.info('CUDA_VISIBLE_DEVICES(GPU使用)=%s' % gpu_list)
 
     if dist_train:
         logger.info('total_batch_size: %d' % (total_gpus * args.batch_size))
