@@ -4,7 +4,7 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2021-08-03 12:41:16
-LastEditTime: 2021-08-03 16:08:33
+LastEditTime: 2021-10-13 19:46:29
 FilePath: /PCDet/pcdet/datasets/huituo/robosense/robosense_dataset.py
 '''
 import numpy as np
@@ -202,7 +202,7 @@ class RobosenseDataset(DatasetTemplate):
         return data_numpy
 
     #根据每一帧的pcd文件名和路径single_pcd_path，
-    # 得到这一帧中的点云数据，返回点云的numpy格式（M,4）
+    # 得到这一帧中的点云数据，返回点云的numpy格式（M,4）==============================================================
     def get_single_pcd_info(self,single_pcd_path):
         single_pcd_path = single_pcd_path
         single_pcd_points = pcl.load_XYZI(single_pcd_path)
@@ -258,7 +258,7 @@ class RobosenseDataset(DatasetTemplate):
 
         #定义输入数据的字典，包含：points，文件的路径，。。？
         input_dict = {
-            'points': points,
+            'points': points, # 点云Mx4
             'frame_id': single_pcd_path,
             'single_pcd_path':single_pcd_path,
         }

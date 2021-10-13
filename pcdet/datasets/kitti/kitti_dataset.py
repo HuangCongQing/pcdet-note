@@ -1,11 +1,15 @@
 '''
 Author: https://blog.csdn.net/weixin_44128857/article/details/108516213
 Date: 2021-07-30 11:53:21
-LastEditTime: 2021-09-05 20:53:08
+LastEditTime: 2021-10-13 19:47:55
 LastEditors: Please set LastEditors
-Description: In User Settings Edit
+Description: 最重要函数:def get_infos()==========================================================
 FilePath: /PCDet/pcdet/datasets/kitti/kitti_dataset.py
 '''
+''' 
+ gt_boxes_lidar = np.concatenate([loc_lidar, l, w, h, -(np.pi / 2 + rots[..., np.newaxis])], axis=1)
+
+ '''
 import copy
 import pickle
 
@@ -95,7 +99,7 @@ class KittiDataset(DatasetTemplate):
     #根据序列号，获取lidar信息
     def get_lidar(self, idx):
         # lidar_file为某个点云的bin文件（序列）
-        lidar_file = self.root_split_path / 'velodyne' / ('%s.bin' % idx)
+        lidar_file = self.root_split_path / 'velodyne' / ('%s.bin' % idx) # 得到bin文件
         assert lidar_file.exists()#如果该文件不存在，直接跳出，并报错
         #读取该 bin文件类型，并将点云数据以 numpy的格式输出！！！
         #并且将数据 转换成 每行四个数据，刚好是一个点云数据的四个参数：X,Y,Z,R(强度或反射值）
@@ -236,7 +240,7 @@ class KittiDataset(DatasetTemplate):
                 #假设有效物体的个数是N
                 # 取有效物体的 location（N,3）、dimensions（N,3）、rotation_y（N,1）信息，
                 loc = annotations['location'][:num_objects]
-                dims = annotations['dimensions'][:num_objects]
+                dims = annotations['dimensions'][:num_objects] # =====================================================
                 rots = annotations['rotation_y'][:num_objects]
                 #通过计算得到在lidar坐标系下的坐标，loc_lidar:（N,3）
                 loc_lidar = calib.rect_to_lidar(loc)
