@@ -26,7 +26,7 @@ MODEL:
         NUM_UPSAMPLE_FILTERS: [256, 256]
 
     DENSE_HEAD:
-        NAME: AnchorHeadMulti
+        NAME: AnchorHeadMulti # 多检测头
         CLASS_AGNOSTIC: False
 
         USE_DIRECTION_CLASSIFIER: True

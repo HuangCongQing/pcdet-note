@@ -245,10 +245,10 @@ class AnchorHeadTemplate(nn.Module):
             tb_dict['rpn_loss_dir'] = dir_loss.item()
 
         return box_loss, tb_dict
-    # -------------------------------------- 获得损失 --------------------------------------
+    # -------------------------------------- pointpillars.py训练调用loss函数 获得损失 --------------------------------------
     def get_loss(self): #  pv_rcnn.py引用   loss_rpn, tb_dict = self.dense_head.get_loss() #
-        cls_loss, tb_dict = self.get_cls_layer_loss()   # 计算classification loss    函数来源于下面   def get_cls_layer_loss(self):
-        box_loss, tb_dict_box = self.get_box_reg_layer_loss() # 计算回归box regression loss
+        cls_loss, tb_dict = self.get_cls_layer_loss()   # 计算classification loss    函数来源于line102行    def get_cls_layer_loss(self):
+        box_loss, tb_dict_box = self.get_box_reg_layer_loss() # 计算回归box regression loss   函数来源于line179行   
         tb_dict.update(tb_dict_box)
         rpn_loss = cls_loss + box_loss #  区域提案RPN region proposal loss 是以上两个loss的和=============================
         print("rpn_loss:", rpn_loss)

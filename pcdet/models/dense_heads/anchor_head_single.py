@@ -62,8 +62,8 @@ class AnchorHeadSingle(AnchorHeadTemplate):
         box_preds = box_preds.permute(0, 2, 3, 1).contiguous()  # [N, H, W, C] 3帧点云，每一帧每个位置有14个预测值，14 = 7 x 2 ，2个anchor，7个回归坐标。
         # 42：3帧点云，每一帧每个位置有14个预测值，14 = 7 x 2 ，2个anchor，7个回归坐标。
         # 
-        self.forward_ret_dict['cls_preds'] = cls_preds  # 类别预测结果  pcdet/models/dense_heads/anchor_head_template.py会用到
-        self.forward_ret_dict['box_preds'] = box_preds # 位置预测结果
+        self.forward_ret_dict['cls_preds'] = cls_preds  # 类别预测结果  pcdet/models/dense_heads/anchor_head_template.py会用到 cls_preds = self.forward_ret_dict['cls_preds']  
+        self.forward_ret_dict['box_preds'] = box_preds # 位置预测结果  
 
         if self.conv_dir_cls is not None:
             dir_cls_preds = self.conv_dir_cls(spatial_features_2d) #   # torch.Size([1, 12(6*2), 248, 216])

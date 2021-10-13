@@ -2,17 +2,17 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from ..backbones_2d import BaseBEVBackbone
+from ..backbones_2d import BaseBEVBackbone # 2D的backbone
 from .anchor_head_template import AnchorHeadTemplate
 
-
+# 单检测头
 class SingleHead(BaseBEVBackbone):
     def __init__(self, model_cfg, input_channels, num_class, num_anchors_per_location, code_size, rpn_head_cfg=None,
                  head_label_indices=None, separate_reg_config=None):
         super().__init__(rpn_head_cfg, input_channels)
 
         self.num_anchors_per_location = num_anchors_per_location
-        self.num_class = num_class
+        self.num_class = num_class # 不同class分别  [2,2,2]
         self.code_size = code_size
         self.model_cfg = model_cfg
         self.separate_reg_config = separate_reg_config
@@ -40,7 +40,7 @@ class SingleHead(BaseBEVBackbone):
                 c_in, self.num_anchors_per_location * self.num_class,
                 kernel_size=3, stride=1, padding=1
             ))
-            self.conv_cls = nn.Sequential(*conv_cls_list)
+            self.conv_cls = nn.Sequential(*conv_cls_list) # 
 
             for reg_config in self.separate_reg_config.REG_LIST:
                 reg_name, reg_channel = reg_config.split(':')
@@ -105,20 +105,20 @@ class SingleHead(BaseBEVBackbone):
         ret_dict = {}
         spatial_features_2d = super().forward({'spatial_features': spatial_features_2d})['spatial_features_2d']
 
-        cls_preds = self.conv_cls(spatial_features_2d)
+        cls_preds = self.conv_cls(spatial_features_2d) # 1 分类预测
 
         if self.separate_reg_config is None:
-            box_preds = self.conv_box(spatial_features_2d)
+            box_preds = self.conv_box(spatial_features_2d) # 2 回归预测
         else:
             box_preds_list = []
             for reg_name in self.conv_box_names:
                 box_preds_list.append(self.conv_box[reg_name](spatial_features_2d))
             box_preds = torch.cat(box_preds_list, dim=1)
-
+        # =============================================
         if not self.use_multihead:
             box_preds = box_preds.permute(0, 2, 3, 1).contiguous()
             cls_preds = cls_preds.permute(0, 2, 3, 1).contiguous()
-        else:
+        else: # 使用了多检测头========================================
             H, W = box_preds.shape[2:]
             batch_size = box_preds.shape[0]
             box_preds = box_preds.view(-1, self.num_anchors_per_location,
@@ -129,7 +129,7 @@ class SingleHead(BaseBEVBackbone):
             cls_preds = cls_preds.view(batch_size, -1, self.num_class)
 
         if self.conv_dir_cls is not None:
-            dir_cls_preds = self.conv_dir_cls(spatial_features_2d)
+            dir_cls_preds = self.conv_dir_cls(spatial_features_2d) #  3朝向预测
             if self.use_multihead:
                 dir_cls_preds = dir_cls_preds.view(
                     -1, self.num_anchors_per_location, self.model_cfg.NUM_DIR_BINS, H, W).permute(0, 1, 3, 4,
@@ -168,31 +168,32 @@ class AnchorHeadMulti(AnchorHeadTemplate):
         else:
             self.shared_conv = None
             shared_conv_num_filter = input_channels
-        self.rpn_heads = None
-        self.make_multihead(shared_conv_num_filter)
+        self.rpn_heads = None # 通过make_multihead得到多检测头
+        self.make_multihead(shared_conv_num_filter) # 首先执行多检测头配置
 
+    # 多检测头配置
     def make_multihead(self, input_channels):
-        rpn_head_cfgs = self.model_cfg.RPN_HEAD_CFGS
+        rpn_head_cfgs = self.model_cfg.RPN_HEAD_CFGS #   'HEAD_CLS_NAME': ['Car'],['Pedestrian'] ['Cyclist']
         rpn_heads = []
         class_names = []
         for rpn_head_cfg in rpn_head_cfgs:
             class_names.extend(rpn_head_cfg['HEAD_CLS_NAME'])
 
-        for rpn_head_cfg in rpn_head_cfgs:
+        for rpn_head_cfg in rpn_head_cfgs: #  ['Car'],['Pedestrian'] ['Cyclist']
             num_anchors_per_location = sum([self.num_anchors_per_location[class_names.index(head_cls)]
                                             for head_cls in rpn_head_cfg['HEAD_CLS_NAME']])
             head_label_indices = torch.from_numpy(np.array([
                 self.class_names.index(cur_name) + 1 for cur_name in rpn_head_cfg['HEAD_CLS_NAME']
             ]))
-
+            # 多个叠加单检测头
             rpn_head = SingleHead(
                 self.model_cfg, input_channels,
-                len(rpn_head_cfg['HEAD_CLS_NAME']) if self.separate_multihead else self.num_class,
+                len(rpn_head_cfg['HEAD_CLS_NAME']) if self.separate_multihead else self.num_class, # 
                 num_anchors_per_location, self.box_coder.code_size, rpn_head_cfg,
                 head_label_indices=head_label_indices,
                 separate_reg_config=self.model_cfg.get('SEPARATE_REG_CONFIG', None)
             )
-            rpn_heads.append(rpn_head)
+            rpn_heads.append(rpn_head) # 多个检测头append
         self.rpn_heads = nn.ModuleList(rpn_heads)
 
     def forward(self, data_dict):
@@ -200,29 +201,30 @@ class AnchorHeadMulti(AnchorHeadTemplate):
         if self.shared_conv is not None:
             spatial_features_2d = self.shared_conv(spatial_features_2d)
 
-        ret_dicts = []
-        for rpn_head in self.rpn_heads:
+        ret_dicts = [] # 
+        for rpn_head in self.rpn_heads: # 每个rpn_head
             ret_dicts.append(rpn_head(spatial_features_2d))
 
-        cls_preds = [ret_dict['cls_preds'] for ret_dict in ret_dicts]
+        cls_preds = [ret_dict['cls_preds'] for ret_dict in ret_dicts] # 多个检测头得到数组
         box_preds = [ret_dict['box_preds'] for ret_dict in ret_dicts]
+        # 元组ret
         ret = {
-            'cls_preds': cls_preds if self.separate_multihead else torch.cat(cls_preds, dim=1),
-            'box_preds': box_preds if self.separate_multihead else torch.cat(box_preds, dim=1),
+            'cls_preds': cls_preds if self.separate_multihead else torch.cat(cls_preds, dim=1), # 分类预测
+            'box_preds': box_preds if self.separate_multihead else torch.cat(box_preds, dim=1), # 回归
         }
 
         if self.model_cfg.get('USE_DIRECTION_CLASSIFIER', False):
             dir_cls_preds = [ret_dict['dir_cls_preds'] for ret_dict in ret_dicts]
-            ret['dir_cls_preds'] = dir_cls_preds if self.separate_multihead else torch.cat(dir_cls_preds, dim=1)
+            ret['dir_cls_preds'] = dir_cls_preds if self.separate_multihead else torch.cat(dir_cls_preds, dim=1) # 朝向
 
-        self.forward_ret_dict.update(ret)
+        self.forward_ret_dict.update(ret) # 更新 ret = { 分类，回归，朝向}
 
-        if self.training:
+        if self.training: # 训练是需要GT
             targets_dict = self.assign_targets(
                 gt_boxes=data_dict['gt_boxes']
             )
-            self.forward_ret_dict.update(targets_dict)
-
+            self.forward_ret_dict.update(targets_dict) # GT放进来
+        # 如果不训练
         if not self.training or self.predict_boxes_when_training:
             batch_cls_preds, batch_box_preds = self.generate_predicted_boxes(
                 batch_size=data_dict['batch_size'],
@@ -241,7 +243,7 @@ class AnchorHeadMulti(AnchorHeadTemplate):
             data_dict['cls_preds_normalized'] = False
 
         return data_dict
-
+    # 分类loss(覆盖template.py的def get_cls_layer_loss(self))
     def get_cls_layer_loss(self):
         loss_weights = self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS
         if 'pos_cls_weight' in loss_weights:
@@ -250,8 +252,8 @@ class AnchorHeadMulti(AnchorHeadTemplate):
         else:
             pos_cls_weight = neg_cls_weight = 1.0
 
-        cls_preds = self.forward_ret_dict['cls_preds']
-        box_cls_labels = self.forward_ret_dict['box_cls_labels']
+        cls_preds = self.forward_ret_dict['cls_preds'] # 
+        box_cls_labels = self.forward_ret_dict['box_cls_labels'] # 
         if not isinstance(cls_preds, list):
             cls_preds = [cls_preds]
         batch_size = int(cls_preds[0].shape[0])
@@ -299,7 +301,7 @@ class AnchorHeadMulti(AnchorHeadTemplate):
             'rpn_loss_cls': cls_losses.item()
         }
         return cls_losses, tb_dict
-
+    # 回归loss
     def get_box_reg_layer_loss(self):
         box_preds = self.forward_ret_dict['box_preds']
         box_dir_cls_preds = self.forward_ret_dict.get('dir_cls_preds', None)
