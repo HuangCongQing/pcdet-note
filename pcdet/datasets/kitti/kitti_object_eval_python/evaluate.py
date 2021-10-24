@@ -18,7 +18,7 @@ def evaluate(label_path,
              current_class=0,
              coco=False,
              score_thresh=-1):
-    dt_annos = kitti.get_label_annos(result_path)
+    dt_annos = kitti.get_label_annos(result_path) # pcdet/datasets/kitti/kitti_object_eval_python/kitti_common.py
     if score_thresh > 0:
         dt_annos = kitti.filter_annos_low_score(dt_annos, score_thresh)
     val_image_ids = _read_imageset_file(label_split_file)

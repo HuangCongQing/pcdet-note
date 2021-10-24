@@ -1,7 +1,7 @@
 '''
 Author: https://blog.csdn.net/weixin_44128857/article/details/108516213
 Date: 2021-07-30 11:53:21
-LastEditTime: 2021-10-13 19:47:55
+LastEditTime: 2021-10-23 21:44:26
 LastEditors: Please set LastEditors
 Description: 最重要函数:def get_infos()==========================================================
 FilePath: /PCDet/pcdet/datasets/kitti/kitti_dataset.py
@@ -239,11 +239,11 @@ class KittiDataset(DatasetTemplate):
 
                 #假设有效物体的个数是N
                 # 取有效物体的 location（N,3）、dimensions（N,3）、rotation_y（N,1）信息，
-                loc = annotations['location'][:num_objects]
+                loc = annotations['location'][:num_objects] # 中心点坐标==================================
                 dims = annotations['dimensions'][:num_objects] # =====================================================
                 rots = annotations['rotation_y'][:num_objects]
                 #通过计算得到在lidar坐标系下的坐标，loc_lidar:（N,3）
-                loc_lidar = calib.rect_to_lidar(loc)
+                loc_lidar = calib.rect_to_lidar(loc) # 转换一下！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
                 #分别取 dims中的第一列、第二列、第三列：l,h,w（N,1）
                 l, h, w = dims[:, 0:1], dims[:, 1:2], dims[:, 2:3]
                 #  h[:, 0] ：（1,N）,通过下面计算后，得到loc_lidar[:, 2]：（1，N）
@@ -469,11 +469,11 @@ class KittiDataset(DatasetTemplate):
 
             return pred_dict
 
-        '''    pred_dicts: list of pred_dicts  预测后得到的列表
-                pred_boxes: (N, 7), Tensor   预测的框，包含七个信息
-                pred_scores: (N), Tensor      预测得分
-                pred_labels: (N), Tensor        预测的标签
-        '''
+            '''    pred_dicts: list of pred_dicts  预测后得到的列表
+                    pred_boxes: (N, 7), Tensor   预测的框，包含七个信息
+                    pred_scores: (N), Tensor      预测得分
+                    pred_labels: (N), Tensor        预测的标签
+            '''
 
         annos = []
         #  index的值为1,2，。。。，N  ？？？？不确定
