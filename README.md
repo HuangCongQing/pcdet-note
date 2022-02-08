@@ -17,6 +17,10 @@ python train.py --cfg_file=cfgs/kitti_models/pointpillar.yaml --batch_size=4 --e
 
 ```
 
+tensorrt部署参考：
+* https://github.com/hova88/OpenPCDet
+* https://github.com/hova88/PointPillars_MultiHead_40FPS
+
 ### Branch
 
 * master：no change
