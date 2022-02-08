@@ -11,6 +11,12 @@ It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/18
 
 Docs:[https://www.yuque.com/huangzhongqing/hre6tf/vy6gd2](https://www.yuque.com/huangzhongqing/hre6tf/vy6gd2)
 
+```
+# pointpillars
+python train.py --cfg_file=cfgs/kitti_models/pointpillar.yaml --batch_size=4 --epochs=10
+
+```
+
 ### Branch
 
 * master：no change
