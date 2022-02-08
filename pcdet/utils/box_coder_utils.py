@@ -69,7 +69,8 @@ class ResidualCoder(object):
         if self.encode_angle_by_sincos:
             rg_cos = cost + torch.cos(ra)
             rg_sin = sint + torch.sin(ra)
-            rg = torch.atan2(rg_sin, rg_cos)
+            # rg = torch.atan2(rg_sin, rg_cos)
+            rg = torch.atan(rg_sin / (rg_cos + 1e-6))
         else:
             rg = rt + ra
 

@@ -60,7 +60,7 @@ def cfg_from_list(cfg_list, config):
 
 def merge_new_config(config, new_config):
     if '_BASE_CONFIG_' in new_config:
-        with open(new_config['_BASE_CONFIG_'], 'r') as f:
+        with open(new_config['_BASE_CONFIG_'], 'r') as f: # 'cfgs/dataset_configs/nuscenes_dataset.yaml'
             try:
                 yaml_config = yaml.load(f, Loader=yaml.FullLoader)
             except:

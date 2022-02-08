@@ -72,7 +72,7 @@ class PillarVFE(VFETemplate):
         features = features[:,0,:]
         return features
 
-
+# 重要函数
 def build_pfe(ckpt,cfg):
 
     pfe =PillarVFE(            
@@ -98,16 +98,18 @@ def build_pfe(ckpt,cfg):
 
 if __name__ == "__main__":
     from pcdet.config import cfg, cfg_from_yaml_file
-    cfg_file = '/path/to/cbgs_pp_multihead.yaml'
-    filename_mh = "/path/to/pp_multihead_nds5823_updated.pth"
+    cfg_file = '/home/hcq/pointcloud/PCDet/tools/cfgs/nuscenes_models/cbgs_pp_multihead.yaml' # ==============================================
+    filename_mh = "/home/hcq/data/pretrain_model/pcdet_to_onnx/pp_multihead_nds5823_updated.pth"# ==============================================
     cfg_from_yaml_file(cfg_file, cfg)
     model_cfg=cfg.MODEL
     pfe , dummy_input  = build_pfe( filename_mh, cfg)
     pfe.eval().cuda()
-    export_onnx_file = "/path/to/cbgs_pp_multihead_pfe.onnx"
+    export_onnx_file = "/home/hcq/data/pretrain_model/pcdet_to_onnx/onnx/cbgs_pp_multihead_pfe.onnx"# ==============================================
+    # 导出onnx！！！
     torch.onnx.export(pfe,
                     dummy_input,
                     export_onnx_file,
-                    opset_version=12,
+                    # opset_version=12, # ValueError: Unsupported ONNX opset version: 12
+                    opset_version=11, 
                     verbose=True,
-                    do_constant_folding=True) # 输出名
+                    do_constant_folding=True) 

@@ -27,6 +27,7 @@ class backbone(nn.Module):
 
 def build_backbone_multihead(ckpt , cfg ):
 
+    # 参数
     pc_range = np.array(cfg.DATA_CONFIG.POINT_CLOUD_RANGE)
     voxel_size = np.array(cfg.DATA_CONFIG.DATA_PROCESSOR[2]['VOXEL_SIZE'])
     grid_size = (pc_range[3:] - pc_range[:3]) /voxel_size
@@ -35,7 +36,7 @@ def build_backbone_multihead(ckpt , cfg ):
     model = backbone(cfg , gridx ,gridy)
     model.to('cuda').eval()
 
-    checkpoint = torch.load(ckpt, map_location='cuda')
+    checkpoint = torch.load(ckpt, map_location='cuda') # 加载权重文件
     dicts = {}
     for key in checkpoint["model_state"].keys():
         if "backbone_2d" in key:
@@ -45,17 +46,17 @@ def build_backbone_multihead(ckpt , cfg ):
     model.load_state_dict(dicts)
 
     dummy_input = torch.ones(1, 64, gridx, gridy).cuda()
-    return model , dummy_input
+    return model , dummy_input # 返回两个参数
 
 if __name__ == "__main__":
     import numpy as np 
     from pcdet.config import cfg, cfg_from_yaml_file
-    cfg_file = '/path/to/cbgs_pp_multihead.yaml'
-    filename_mh = "/path/to/pp_multihead_nds5823_updated.pth"
+    cfg_file = '/home/hcq/pointcloud/PCDet/tools/cfgs/nuscenes_models/cbgs_pp_multihead.yaml' # ==============================================
+    filename_mh = "/home/hcq/data/pretrain_model/pcdet_to_onnx/pp_multihead_nds5823_updated.pth"# ==============================================
     cfg_from_yaml_file(cfg_file, cfg)
     model , dummy_input = build_backbone_multihead(filename_mh , cfg )
 
-    export_onnx_file = "/path/to/cbgs_pp_multihead_backbone.onnx"
+    export_onnx_file = "/home/hcq/data/pretrain_model/pcdet_to_onnx/onnx/cbgs_pp_multihead_backbone.onnx"
     model.eval().cuda()
     torch.onnx.export(model,
                       dummy_input,
