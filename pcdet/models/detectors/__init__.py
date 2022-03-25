@@ -13,6 +13,7 @@ from .point_rcnn import PointRCNN # py文件对应的类
 from .pointpillar import PointPillar #py文件对应的类  pcdet/models/detectors/pointpillar.py
 from .pv_rcnn import PVRCNN # py文件对应的类
 from .second_net import SECONDNet
+from .centerpoint import CenterPoint
 # 字典dict(包含各个模型的class)
 __all__ = {  #  __all__[model_cfg.NAME]
     'Detector3DTemplate': Detector3DTemplate, # class Detector3DTemplate(nn.Module):
@@ -20,7 +21,8 @@ __all__ = {  #  __all__[model_cfg.NAME]
     'PartA2Net': PartA2Net,
     'PVRCNN': PVRCNN, # class PVRCNN(Detector3DTemplate):
     'PointPillar': PointPillar, # # class PointPillar(Detector3DTemplate):
-    'PointRCNN': PointRCNN
+    'PointRCNN': PointRCNN,
+    'CenterPoint': CenterPoint
 }
 ''' 
 调用的这些包就是pcdet/models/detectors下的各个py文件，里面的函数用到再说
