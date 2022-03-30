@@ -21,6 +21,22 @@ tensorrt部署参考：
 * https://github.com/hova88/OpenPCDet
 * https://github.com/hova88/PointPillars_MultiHead_40FPS
 
+### 
+
+
+```
+# pointpillars
+python train.py --cfg_file=cfgs/kitti_models/pointpillar.yaml --batch_size=4 --epochs=10
+
+# centerpoint
+train.py --cfg_file cfgs/kitti_models/centerpoint.yaml --batch_size 4 --epoch 100
+## 报错 RuntimeError: CUDA error: out of memory
+train.py --cfg_file cfgs/kitti_models/centerpoint_pillar.yaml --batch_size 4 --epoch 100
+python demo.py --cfg_file cfgs/kitti_models/centerpoints.yaml --ckpt ../checkpoints/centerpoint_kitti_80.pth --data_path ../testing/velodyne/000003.bin
+
+```
+
+
 ### Branch
 
 * master：no change
