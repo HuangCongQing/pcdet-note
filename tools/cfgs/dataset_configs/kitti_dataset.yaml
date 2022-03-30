@@ -14,7 +14,7 @@ DATA_SPLIT: {
 #信息路径 
 INFO_PATH: {
     'train': [kitti_infos_train.pkl],   #从kitti数据库中调用（通过pcdet/datasets/kitti/kitti_dataset.py生成）
-    'test': [kitti_infos_val.pkl],
+    'test': [kitti_infos_val.pkl], # 测试只用了验证集的信息
 }
 
 FOV_POINTS_ONLY: True  #仅视点

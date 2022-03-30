@@ -187,7 +187,7 @@ def filter_kitti_anno(image_anno,
                 img_filtered_annotations[key] = (img_filtered_annotations[key][
                     np.logical_not(boxes_to_remove)])
     return img_filtered_annotations
-
+# 过滤低阈值
 def filter_annos_low_score(image_annos, thresh):
     new_image_annos = []
     for anno in image_annos:

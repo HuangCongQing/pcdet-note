@@ -17,16 +17,16 @@ def evaluate(label_path,
              label_split_file,
              current_class=0,
              coco=False,
-             score_thresh=-1):
+             score_thresh=-1): # 阈值
     dt_annos = kitti.get_label_annos(result_path) # pcdet/datasets/kitti/kitti_object_eval_python/kitti_common.py
     if score_thresh > 0:
-        dt_annos = kitti.filter_annos_low_score(dt_annos, score_thresh)
+        dt_annos = kitti.filter_annos_low_score(dt_annos, score_thresh) # 过滤阈值比较低的
     val_image_ids = _read_imageset_file(label_split_file)
     gt_annos = kitti.get_label_annos(label_path, val_image_ids)
     if coco:
         return get_coco_eval_result(gt_annos, dt_annos, current_class)
     else:
-        return get_official_eval_result(gt_annos, dt_annos, current_class)
+        return get_official_eval_result(gt_annos, dt_annos, current_class) # 评测结果
 
 
 if __name__ == '__main__':

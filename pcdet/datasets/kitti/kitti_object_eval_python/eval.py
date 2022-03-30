@@ -607,7 +607,7 @@ def print_str(value, *arg, sstream=None):
     return sstream.getvalue()
 
 # do_eval是计算评估结果的重要函数，其定义如下
-# gt是真值，dt是测试结果
+# gt是真值，dt是测试结果======================================
 def do_eval(gt_annos, 
             dt_annos,
             current_classes,
