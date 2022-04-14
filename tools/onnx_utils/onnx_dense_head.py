@@ -283,6 +283,7 @@ class AnchorHeadMulti(AnchorHeadTemplate):
             rpn_heads.append(rpn_head)
         self.rpn_heads = nn.ModuleList(rpn_heads)
 
+    # main主函数(输入是spatial_features_2d)================================================================
     def forward(self, spatial_features_2d):
         # spatial_features_2d = data_dict['spatial_features_2d']
         data_dict = {}
@@ -317,6 +318,7 @@ class AnchorHeadMulti(AnchorHeadTemplate):
         #     self.forward_ret_dict.update(targets_dict)
 
         # if not self.training or self.predict_boxes_when_training:
+        # 生成预测框
         batch_cls_preds, batch_box_preds = self.generate_predicted_boxes(
             batch_size=1, cls_preds=cls_preds, box_preds=box_preds
         )

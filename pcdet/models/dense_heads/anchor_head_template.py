@@ -255,7 +255,7 @@ class AnchorHeadTemplate(nn.Module):
 
         tb_dict['rpn_loss'] = rpn_loss.item()# rpn损失
         return rpn_loss, tb_dict # 
-    # 生成预测框
+    # 生成预测框(推理也用)
     def generate_predicted_boxes(self, batch_size, cls_preds, box_preds, dir_cls_preds=None):
         """
         Args:
@@ -303,6 +303,7 @@ class AnchorHeadTemplate(nn.Module):
                 -(batch_box_preds[..., 6] + np.pi / 2), offset=0.5, period=np.pi * 2
             )
 
+        # 返回
         return batch_cls_preds, batch_box_preds
 
     def forward(self, **kwargs):
