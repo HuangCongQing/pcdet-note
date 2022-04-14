@@ -7,17 +7,17 @@ MODEL:
     NAME: CenterPoint
 
     VFE:
-        NAME: PillarVFE # 更改
+        NAME: PillarVFE # 更改 pcdet/models/backbones_3d/vfe/pillar_vfe.py
         WITH_DISTANCE: False
         USE_ABSLOTE_XYZ: True
         USE_NORM: True
         NUM_FILTERS: [ 64, 64 ]
 
     BACKBONE_3D:
-        NAME: VoxelResBackBone8x
+        NAME: VoxelResBackBone8x # pcdet/models/backbones_3d/spconv_backbone.py
 
     MAP_TO_BEV:
-        NAME: HeightCompression
+        NAME: HeightCompression # pcdet/models/backbones_2d/map_to_bev/height_compression.py
         NUM_BEV_FEATURES: 256
 
     BACKBONE_2D:

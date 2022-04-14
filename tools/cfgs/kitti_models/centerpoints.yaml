@@ -10,14 +10,14 @@ MODEL:
         NAME: MeanVFE
 
     BACKBONE_3D:
-        NAME: VoxelResBackBone8x
+        NAME: VoxelResBackBone8x # pcdet/models/backbones_3d/spconv_backbone.py
 
     MAP_TO_BEV:
-        NAME: HeightCompression
+        NAME: HeightCompression # pcdet/models/backbones_2d/map_to_bev/height_compression.py
         NUM_BEV_FEATURES: 256
 
     BACKBONE_2D:
-        NAME: BaseBEVBackbone
+        NAME: BaseBEVBackbone # pcdet/models/backbones_2d/base_bev_backbone.py
 
         LAYER_NUMS: [5]
         LAYER_STRIDES: [1]
@@ -26,7 +26,7 @@ MODEL:
         NUM_UPSAMPLE_FILTERS: [256]
 
     DENSE_HEAD:
-        NAME: CenterHead
+        NAME: CenterHead # pcdet/models/dense_heads/center_head.py
         CLASS_AGNOSTIC: False
 
         CLASS_NAMES_EACH_HEAD: [
@@ -66,7 +66,7 @@ MODEL:
                 NMS_THRESH: 0.7
                 NMS_PRE_MAXSIZE: 4096
                 NMS_POST_MAXSIZE: 500
-
+    # 后期处理(预测阶段)
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
         SCORE_THRESH: 0.1
