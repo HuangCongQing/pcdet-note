@@ -4,7 +4,7 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2021-05-02 23:48:58
-LastEditTime: 2021-09-10 14:46:46
+LastEditTime: 2022-04-24 11:08:40
 FilePath: /PCDet/tools/demo_npy_mayavi.py
 '''
 import argparse
@@ -23,18 +23,18 @@ sys.path.append('..')
 # from pcdet.utils import common_utils
 from visual_utils import visualize_utils as V
 
-data_dict = np.load("/home/hcq/下载/npy/data_dict.npy", allow_pickle=True)
+data_dict = np.load("./npy/data_dict.npy", allow_pickle=True)
 # data_dict = data_dict[:, 1:4]
 # np.transpose(,[1,2,0])
 # np.hstack([data_dict[:,1:3],data_dict[:,0:1]]).shape
 # data_dict = np.hstack( [          data_dict[:,2:3] , data_dict[:,0:1],  data_dict[:,1:2]               ])
-pred_boxes = np.load("/home/hcq/下载/npy/pred_boxes.npy", allow_pickle=True)
+pred_boxes = np.load("./npy/pred_boxes.npy", allow_pickle=True)
 # pred_boxes = pred_boxes*100
 # pred_boxes[:, 1] = pred_boxes[:, 1]-  40.0
 # pred_boxes[:, 2] = pred_boxes[:, 2]-  3
 # pred_boxes = pred_boxes*100
-pred_labels = np.load("/home/hcq/下载/npy/pred_labels.npy", allow_pickle=True)
-pred_scores = np.load("/home/hcq/下载/npy/pred_scores.npy", allow_pickle=True)
+pred_labels = np.load("./npy/pred_labels.npy", allow_pickle=True)
+pred_scores = np.load("./npy/pred_scores.npy", allow_pickle=True)
 # data_dict = np.load("/home/hcq/下载/npy_epoch_40/data_dict.npy", allow_pickle=True)
 # pred_boxes = np.load("/home/hcq/下载/npy_epoch_40/pred_boxes.npy", allow_pickle=True)
 # pred_labels = np.load("/home/hcq/下载/npy_epoch_40/pred_labels.npy", allow_pickle=True)

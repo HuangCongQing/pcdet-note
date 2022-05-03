@@ -9,6 +9,13 @@ import torch
 import torch.distributed as dist
 import torch.nn as nn
 from tensorboardX import SummaryWriter
+# cuDNN error: CUDNN_STATUS_EXECUTION_FAILED 解决方案?????
+torch.backends.cudnn.enabled = False
+
+
+# 配置gpu
+# os.environ["CUDA_VISIBLE_DEVICES"] =  "5,6,7"
+# os.environ["CUDA_VISIBLE_DEVICES"] =  "0"
 
 
 import sys
@@ -19,8 +26,6 @@ from pcdet.models import build_network, model_fn_decorator # 模型和损失函�
 from pcdet.utils import common_utils
 from train_utils.optimization import build_optimizer, build_scheduler # 优化器
 from train_utils.train_utils import train_model
-
-os.environ["CUDA_VISIBLE_DEVICES"] =  "5,6,7"
 
 def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')

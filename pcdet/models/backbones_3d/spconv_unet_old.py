@@ -8,18 +8,7 @@ from ...utils import common_utils
 from .spconv_backbone import post_act_block
 
 
-from spconv.pytorch import ops
-from spconv.pytorch.conv import (SparseConv2d, SparseConv3d, SparseConvTranspose2d,
-                         SparseConvTranspose3d, SparseInverseConv2d,
-                         SparseInverseConv3d, SubMConv2d, SubMConv3d)
-from spconv.pytorch.core import SparseConvTensor
-from spconv.pytorch.identity import Identity
-from spconv.pytorch.modules import SparseModule, SparseSequential
-from spconv.pytorch.ops import ConvAlgo
-from spconv.pytorch.pool import SparseMaxPool2d, SparseMaxPool3d
-from spconv.pytorch.tables import AddTable, ConcatTable
-
-class SparseBasicBlock(SparseModule):
+class SparseBasicBlock(spconv.SparseModule):
     expansion = 1
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, indice_key=None, norm_fn=None):

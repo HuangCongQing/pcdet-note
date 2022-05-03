@@ -105,7 +105,7 @@ class PillarVFE(VFETemplate): # 继承：vfe_template.py
             [type]: [description]
         """
         actual_num = torch.unsqueeze(actual_num, axis + 1)
-        print('actual_num shape is: ', actual_num.shape)   
+        # print('actual_num shape is: ', actual_num.shape)   
         # tiled_actual_num: [N, M, 1]
 
         max_num_shape = [1] * len(actual_num.shape)
@@ -154,7 +154,7 @@ class PillarVFE(VFETemplate): # 继承：vfe_template.py
         mask = torch.unsqueeze(mask, -1).type_as(voxel_features)
         features *= mask
 
-        print('161 features shape is: ', features.shape)  
+        # print('161 features shape is: ', features.shape)  
         # Forward pass through PFNLayers
         for pfn in self.pfn_layers:
             features = pfn(features)

@@ -4,7 +4,7 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2021-08-03 09:26:49
-LastEditTime: 2021-09-06 18:52:27
+LastEditTime: 2022-05-03 21:13:26
 FilePath: /PCDet/pcdet/models/backbones_2d/map_to_bev/pointpillar_scatter.py
 '''
 import torch
@@ -18,7 +18,7 @@ class PointPillarScatter(nn.Module):
         self.model_cfg = model_cfg
         self.num_bev_features = self.model_cfg.NUM_BEV_FEATURES # NUM_BEV_FEATURES: 64 #BEV特征数
         self.nx, self.ny, self.nz = grid_size # 网格  torch.Size([8932, 32, 10])
-        print("grid_size ", grid_size)
+        # print("grid_size:", grid_size, " pointpillar_scatter.py") # grid_size  [432 496   1]
         assert self.nz == 1
 
     def forward(self, batch_dict, **kwargs):

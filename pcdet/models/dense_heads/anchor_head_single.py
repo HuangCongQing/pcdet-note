@@ -4,7 +4,7 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2021-08-03 09:26:49
-LastEditTime: 2021-09-09 13:14:35
+LastEditTime: 2022-05-03 21:14:11
 FilePath: /PCDet/pcdet/models/dense_heads/anchor_head_single.py
 '''
 import numpy as np
@@ -53,7 +53,7 @@ class AnchorHeadSingle(AnchorHeadTemplate):
         spatial_features_2d = data_dict['spatial_features_2d'] # torch.Size([3, 384, 248, 216]) # 2D卷积，上下采样连接后的 (batch_size，6C，H/2，W/2)
         # 分类2D卷积
         cls_preds = self.conv_cls(spatial_features_2d)  # 2D卷积，进行类别预测   (batch_size，6C，H/2，W/2)
-        print("cls_preds.shape:", cls_preds.shape) # torch.Size([1, 18(6*3), 248, 216])
+        # print("cls_preds.shape:", cls_preds.shape) # torch.Size([1, 18(6*3), 248, 216])
         # 回归2D卷积
         box_preds = self.conv_box(spatial_features_2d) # 2D卷积， 进行位置预测  torch.Size([3, 248, 216, 42]) # 位置预测结果 [N, H, W, C2]   3帧点云，每一帧每个位置有14个预测值，14 = 7 x 2 ，2个anchor，7个回归坐标。
         # 42：3帧点云，每一帧每个位置有14个预测值，14 = 7 x 2 ，2个anchor，7个回归坐标。

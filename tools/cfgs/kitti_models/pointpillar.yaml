@@ -156,7 +156,8 @@ MODEL:
 
 # 优化
 OPTIMIZATION:
-    BATCH_SIZE_PER_GPU: 4 #每个GPU的批量大小
+    # BATCH_SIZE_PER_GPU: 4 #每个GPU的批量大小
+    BATCH_SIZE_PER_GPU: 1 #每个GPU的批量大小
     NUM_EPOCHS: 80 #epoch数
 
     OPTIMIZER: adam_onecycle #优化器

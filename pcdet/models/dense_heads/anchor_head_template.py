@@ -251,7 +251,7 @@ class AnchorHeadTemplate(nn.Module):
         box_loss, tb_dict_box = self.get_box_reg_layer_loss() # 计算回归box regression loss   函数来源于line179行   
         tb_dict.update(tb_dict_box)
         rpn_loss = cls_loss + box_loss #  区域提案RPN region proposal loss 是以上两个loss的和=============================
-        print("rpn_loss:", rpn_loss)
+        # print("rpn_loss:", rpn_loss)
 
         tb_dict['rpn_loss'] = rpn_loss.item()# rpn损失
         return rpn_loss, tb_dict # 

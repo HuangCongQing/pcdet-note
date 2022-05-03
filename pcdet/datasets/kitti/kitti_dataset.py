@@ -1,7 +1,7 @@
 '''
 Author: https://blog.csdn.net/weixin_44128857/article/details/108516213
 Date: 2021-07-30 11:53:21
-LastEditTime: 2021-10-23 21:44:26
+LastEditTime: 2022-04-16 18:15:46
 LastEditors: Please set LastEditors
 Description: 最重要函数:def get_infos()==========================================================
 FilePath: /PCDet/pcdet/datasets/kitti/kitti_dataset.py
@@ -667,7 +667,8 @@ if __name__ == '__main__':
         from pathlib import Path
         from easydict import EasyDict
         #以下的命令和配置，只是为创建kitti信息做的
-        dataset_cfg = EasyDict(yaml.load(open(sys.argv[2])))
+        # dataset_cfg = EasyDict(yaml.load(open(sys.argv[2])))
+        dataset_cfg = EasyDict(yaml.safe_load(open(sys.argv[2])))
         ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
         create_kitti_infos( # 调用函数 ，生成处理的数据集================
             dataset_cfg=dataset_cfg,

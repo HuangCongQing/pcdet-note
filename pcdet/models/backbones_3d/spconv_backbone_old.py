@@ -2,16 +2,7 @@ from functools import partial
 
 import spconv
 import torch.nn as nn
-from spconv.pytorch import ops
-from spconv.pytorch.conv import (SparseConv2d, SparseConv3d, SparseConvTranspose2d,
-                         SparseConvTranspose3d, SparseInverseConv2d,
-                         SparseInverseConv3d, SubMConv2d, SubMConv3d)
-from spconv.pytorch.core import SparseConvTensor
-from spconv.pytorch.identity import Identity
-from spconv.pytorch.modules import SparseModule, SparseSequential
-from spconv.pytorch.ops import ConvAlgo
-from spconv.pytorch.pool import SparseMaxPool2d, SparseMaxPool3d
-from spconv.pytorch.tables import AddTable, ConcatTable
+
 
 def post_act_block(in_channels, out_channels, kernel_size, indice_key=None, stride=1, padding=0,
                    conv_type='subm', norm_fn=None):
@@ -35,7 +26,7 @@ def post_act_block(in_channels, out_channels, kernel_size, indice_key=None, stri
     return m
 
 
-class SparseBasicBlock(SparseModule):
+class SparseBasicBlock(spconv.SparseModule):
     expansion = 1
 
     def __init__(self, inplanes, planes, stride=1, norm_fn=None, downsample=None, indice_key=None):
