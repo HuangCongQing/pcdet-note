@@ -11,7 +11,7 @@ try:
 except:
     pass
 
-
+#　下面是使用spconv生成pillar的代码
 class VoxelGeneratorWrapper():
     def __init__(self, vsize_xyz, coors_range_xyz, num_point_features, max_num_points_per_voxel, max_num_voxels):
         try:
@@ -111,9 +111,19 @@ class DataProcessor(object):
             return partial(self.transform_points_to_voxels_placeholder, config=config)
         
         return data_dict
-        
+
+    # 将点云转换为pillar,使用spconv的VoxelGeneratorV2（yaml文件中有配置NAME: transform_points_to_voxels）
     def transform_points_to_voxels(self, data_dict=None, config=None):
+        """
+        将点云转换为pillar,使用spconv的VoxelGeneratorV2
+        因为pillar可是认为是一个z轴上所有voxel的集合，所以在设置的时候，
+        只需要将每个voxel的高度设置成kitti中点云的最大高度即可
+        """
+
+        # 初始化点云转换成pillar需要的参数
         if data_dict is None:
+            # kitti截取的点云范围是[0, -39.68, -3, 69.12, 39.68, 1]
+            # 得到[69.12, 79.36, 4]/[0.16, 0.16, 4] = [432, 496, 1]
             grid_size = (self.point_cloud_range[3:6] - self.point_cloud_range[0:3]) / np.array(config.VOXEL_SIZE)
             self.grid_size = np.round(grid_size).astype(np.int64)
             self.voxel_size = config.VOXEL_SIZE
@@ -122,16 +132,27 @@ class DataProcessor(object):
             return partial(self.transform_points_to_voxels, config=config)
 
         if self.voxel_generator is None:
-            self.voxel_generator = VoxelGeneratorWrapper(
+            self.voxel_generator = VoxelGeneratorWrapper( # 在上面实现
+                # 给定每个pillar的大小  [0.16, 0.16, 4]
                 vsize_xyz=config.VOXEL_SIZE,
+                # 给定点云的范围 [0, -39.68, -3, 69.12, 39.68, 1]
                 coors_range_xyz=self.point_cloud_range,
+                # 给定每个点云的特征维度，这里是x，y，z，r 其中r是激光雷达反射强度
                 num_point_features=self.num_point_features,
+                # 给定每个pillar中最多能有多少个点 32
                 max_num_points_per_voxel=config.MAX_POINTS_PER_VOXEL,
-                max_num_voxels=config.MAX_NUMBER_OF_VOXELS[self.mode],
+                # 最多选取多少个pillar，因为生成的pillar中，很多都是没有点在里面的
+                # 可以从上面的可视化图像中查看到，所以这里只需要得到那些非空的pillar就行
+                max_num_voxels=config.MAX_NUMBER_OF_VOXELS[self.mode], # 16000
             )
 
         points = data_dict['points']
-        voxel_output = self.voxel_generator.generate(points)
+        # 生成pillar输出
+        voxel_output = self.voxel_generator.generate(points) # 生成voxel
+        # 假设一份点云数据是N*4，那么经过pillar生成后会得到三份数据
+        # voxels代表了每个生成的pillar数据，维度是[M,32,4] 比如：(8500, 32, 4)
+        # coordinates代表了每个生成的pillar所在的zyx轴坐标，维度是[M,3],其中z恒为0
+        # num_points代表了每个生成的pillar中有多少个有效的点维度是[m,]，因为不满32会被0填充
         voxels, coordinates, num_points = voxel_output
 
         if not data_dict['use_lead_xyz']:
@@ -139,7 +160,7 @@ class DataProcessor(object):
 
         data_dict['voxels'] = voxels
         data_dict['voxel_coords'] = coordinates
-        data_dict['voxel_num_points'] = num_points
+        data_dict['voxel_num_points'] = num_points # plt.plot(num_points)   np.sum(num_points>=32)
         return data_dict
 
     def sample_points(self, data_dict=None, config=None):
