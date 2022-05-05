@@ -4,7 +4,7 @@ import torch
 from ....ops.iou3d_nms import iou3d_nms_utils
 from ....utils import box_utils
 
-# ？？？？？
+# GT和先验框的匹配(target assignment)
 class AxisAlignedTargetAssigner(object):
     def __init__(self, model_cfg, class_names, box_coder, match_height=False):
         super().__init__()
@@ -33,6 +33,7 @@ class AxisAlignedTargetAssigner(object):
         #         for idx, name in enumerate(rpn_head_cfg['HEAD_CLS_NAME']):
         #             self.gt_remapping[name] = idx + 1
 
+    # assign_targets完成对一帧点云数据中所有的类别的GT和anchor的正负样本分配，
     def assign_targets(self, all_anchors, gt_boxes_with_classes):
         """
         Args:
@@ -80,7 +81,7 @@ class AxisAlignedTargetAssigner(object):
                     anchors = anchors.view(-1, anchors.shape[-1])
                     selected_classes = cur_gt_classes[mask]
 
-                single_target = self.assign_targets_single( # line 132   IOU计算=========================================
+                single_target = self.assign_targets_single( # line 132   IOU计算（里面包含编码）=========================================
                     anchors,
                     cur_gt[mask],
                     gt_classes=selected_classes,
@@ -128,7 +129,9 @@ class AxisAlignedTargetAssigner(object):
 
         }
         return all_targets_dict
+    
     # pointpillar IOU计算   https://blog.csdn.net/W1995S/article/details/115486685
+    #  assign_targets_single完成对一帧中每个类别的GT和anchor的正负样本分配。
     def assign_targets_single(self, anchors, gt_boxes, gt_classes, matched_threshold=0.6, unmatched_threshold=0.45):
         # Car：匹配使用0.6和0.45的正负样本阈值
         # anchors：[107136, 7] 
@@ -202,7 +205,15 @@ class AxisAlignedTargetAssigner(object):
             fg_gt_boxes = gt_boxes[anchor_to_gt_argmax[fg_inds], :]   # gt_box： [扩展之后的gt_num=正样本数, 7]
             fg_anchors = anchors[fg_inds, :]  # 前景anchor，即正样本： [正样本数, 7]
 
-            bbox_targets[fg_inds, :] = self.box_coder.encode_torch(fg_gt_boxes, fg_anchors)   # 编码之后的(△x.....)
+            # 编码
+            """
+            PointPillar编码gt和前景anchor，并赋值到bbox_targets的对应位置
+            7个参数的编码的方式为
+            ∆x = (x^gt − xa^da)/d^a , ∆y = (y^gt − ya^da)/d^a , ∆z = (z^gt − za^ha)/h^a
+            ∆w = log (w^gt / w^a) ∆l = log (l^gt / l^a) , ∆h = log (h^gt / h^a)
+            ∆θ = sin(θ^gt - θ^a) 
+            """
+            bbox_targets[fg_inds, :] = self.box_coder.encode_torch(fg_gt_boxes, fg_anchors)   # 编码之后的(△x.....)=========================
 
         reg_weights = anchors.new_zeros((num_anchors,))
 
@@ -215,7 +226,7 @@ class AxisAlignedTargetAssigner(object):
 
         ret_dict = {
             'box_cls_labels': labels,
-            'box_reg_targets': bbox_targets,
+            'box_reg_targets': bbox_targets, # 经过编码结果
             'reg_weights': reg_weights,
         }
         return ret_dict

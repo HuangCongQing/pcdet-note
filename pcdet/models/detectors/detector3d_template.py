@@ -171,7 +171,8 @@ class Detector3DTemplate(nn.Module): # 【 参数都是从train.py传过来的�
 
     def forward(self, **kwargs):
         raise NotImplementedError
-    #   预测阶段: 后处理 引用： 【pv_rcnn.py】推理  pred_dicts, recall_dicts = self.post_processing(batch_dict) 
+    # 不在模型中，在pcdet/models/detectors/pointpillar.py
+    #  预测阶段: 后处理 引用： 【pv_rcnn.py】推理  pred_dicts, recall_dicts = self.post_processing(batch_dict) 
     # https://blog.csdn.net/weixin_44579633/article/details/107542954#t6
     def post_processing(self, batch_dict):
         """

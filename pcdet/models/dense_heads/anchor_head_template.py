@@ -24,6 +24,7 @@ class AnchorHeadTemplate(nn.Module):
         )
 
         anchor_generator_cfg = self.model_cfg.ANCHOR_GENERATOR_CONFIG # 三类配置 Car ，Pedestrian，Cyclist
+        # 生成anchor
         anchors, self.num_anchors_per_location = self.generate_anchors( # 生成anchors
             anchor_generator_cfg, grid_size=grid_size, point_cloud_range=point_cloud_range,
             anchor_ndim=self.box_coder.code_size
@@ -42,6 +43,7 @@ class AnchorHeadTemplate(nn.Module):
             anchor_generator_config=anchor_generator_cfg
         )
         feature_map_size = [grid_size[:2] // config['feature_map_stride'] for config in anchor_generator_cfg]
+        # 生成anchor /target_assigner/anchor_generator.py =============================================
         anchors_list, num_anchors_per_location_list = anchor_generator.generate_anchors(feature_map_size)
 
         if anchor_ndim != 7:
@@ -86,7 +88,7 @@ class AnchorHeadTemplate(nn.Module):
             'dir_loss_func',  # 朝向损失 由于localization loss不能区分box的  , 所以加上direction loss.
             loss_utils.WeightedCrossEntropyLoss()
         )
-    # 
+    # 》》》pcdet/models/dense_heads/target_assigner/axis_aligned_target_assigner.py
     def assign_targets(self, gt_boxes):
         """
         Args:
@@ -94,6 +96,7 @@ class AnchorHeadTemplate(nn.Module):
         Returns:
 
         """
+        # pcdet/models/dense_heads/target_assigner/axis_aligned_target_assigner.py
         targets_dict = self.target_assigner.assign_targets( # 
             self.anchors, gt_boxes
         )
@@ -107,7 +110,7 @@ class AnchorHeadTemplate(nn.Module):
         torch.Size([3, 321408]) # box类别标签
 
         数字分析：
-        C1通道：18 = 3 x 3 x 2，3帧点云，每一帧点云在backbon得到的feature map 上每一个位置生成2个anchor，每个anchor预测Car、Pedestrian、Cyclists 这 3个类别。
+        C1通道：18 = 3 x 3 x 2，3帧点云，每一帧点云在backbone得到的feature map 上每一个位置生成2个anchor，每个anchor预测Car、Pedestrian、Cyclists 这 3个类别。
         num_anchors ： 321408 = 107136 x 3，3帧点云，每一帧点云生成107136 = 248 x 216 x 2个anchor。
         ————————————————
         版权声明：本文为CSDN博主「THE@JOKER」的原创文章，遵循CC 4.0 BY-SA版权协议，转载请附上原文出处链接及本声明。
@@ -246,6 +249,7 @@ class AnchorHeadTemplate(nn.Module):
 
         return box_loss, tb_dict
     # -------------------------------------- pointpillars.py训练调用loss函数 获得损失 --------------------------------------
+    #  在PointPillars损失计算分别有三个，每个anhcor和GT的类别分类损失、box的7个回归损失、还有一个方向角预测的分类损失构成
     def get_loss(self): #  pv_rcnn.py引用   loss_rpn, tb_dict = self.dense_head.get_loss() #
         cls_loss, tb_dict = self.get_cls_layer_loss()   # 计算classification loss    函数来源于line102行    def get_cls_layer_loss(self):
         box_loss, tb_dict_box = self.get_box_reg_layer_loss() # 计算回归box regression loss   函数来源于line179行   
@@ -255,7 +259,7 @@ class AnchorHeadTemplate(nn.Module):
 
         tb_dict['rpn_loss'] = rpn_loss.item()# rpn损失
         return rpn_loss, tb_dict # 
-    # 生成预测框(推理也用)
+    # 生成预测框(推理也用)===========================================================
     def generate_predicted_boxes(self, batch_size, cls_preds, box_preds, dir_cls_preds=None):
         """
         Args:
@@ -270,34 +274,65 @@ class AnchorHeadTemplate(nn.Module):
 
         """
         if isinstance(self.anchors, list):
+            # 是否使用多头预测，默认否
             if self.use_multihead:
                 anchors = torch.cat([anchor.permute(3, 4, 0, 1, 2, 5).contiguous().view(-1, anchor.shape[-1])
                                      for anchor in self.anchors], dim=0)
             else:
+                """
+                每个类别anchor的生成情况:
+                [(Z, Y, X, anchor尺度, 该尺度anchor方向, 7个回归参数)
+                (Z, Y, X, anchor尺度, 该尺度anchor方向, 7个回归参数)
+                (Z, Y, X, anchor尺度, 该尺度anchor方向, 7个回归参数)]
+                在倒数第三个维度拼接
+                anchors 维度 (Z, Y, X, 3个anchor尺度, 每个尺度两个方向, 7)
+                            (1, 248, 216, 3, 2, 7)
+                """
                 anchors = torch.cat(self.anchors, dim=-3)
         else:
             anchors = self.anchors
+        # 计算一共有多少个anchor Z*Y*X*num_of_anchor_scale*anchor_rot
         num_anchors = anchors.view(-1, anchors.shape[-1]).shape[0]
         batch_anchors = anchors.view(1, -1, anchors.shape[-1]).repeat(batch_size, 1, 1)
+
+        # 将预测结果都flatten为一维的
         batch_cls_preds = cls_preds.view(batch_size, num_anchors, -1).float() \
             if not isinstance(cls_preds, list) else cls_preds
+        # (batch_size, Z*Y*X*num_of_anchor_scale*anchor_rot, 7)
         batch_box_preds = box_preds.view(batch_size, num_anchors, -1) if not isinstance(box_preds, list) \
             else torch.cat(box_preds, dim=1).view(batch_size, num_anchors, -1)
-        batch_box_preds = self.box_coder.decode_torch(batch_box_preds, batch_anchors)
+        # 对7个预测的box参数进行解码操作
+        batch_box_preds = self.box_coder.decode_torch(batch_box_preds, batch_anchors) # 解码操作========================
 
+        # 每个anchor的方向预测
+        # 由于在角度回归的时候，不可以完全区分两个两个方向完全相反的预测框，所以在实现的时候，作者加入了对先验框的方向分类，使用softmax函数预测方向的类别。
         if dir_cls_preds is not None:
-            dir_offset = self.model_cfg.DIR_OFFSET
+            # 0.78539 方向偏移
+            dir_offset = self.model_cfg.DIR_OFFSET 
+            # 0
             dir_limit_offset = self.model_cfg.DIR_LIMIT_OFFSET
+            # 将方向预测结果flatten为一维的 (batch_size, Z*Y*X*num_of_anchor_scale*anchor_rot, 2)
             dir_cls_preds = dir_cls_preds.view(batch_size, num_anchors, -1) if not isinstance(dir_cls_preds, list) \
                 else torch.cat(dir_cls_preds, dim=1).view(batch_size, num_anchors, -1)
+            # (batch_size, Z*Y*X*num_of_anchor_scale*anchor_rot)
+            # 取出所有anchor的方向分类 : 正向和反向
             dir_labels = torch.max(dir_cls_preds, dim=-1)[1]
-
+            
+            # pi
             period = (2 * np.pi / self.model_cfg.NUM_DIR_BINS)
+            # 将角度在0到pi之间    在OpenPCDet中，坐标使用的是统一规范坐标，x向前，y向左，z向上
+            # 这里参考训练时候的原因，现将角度角度沿着x轴的逆时针旋转了45度得到dir_rot
             dir_rot = common_utils.limit_period(
                 batch_box_preds[..., 6] - dir_offset, dir_limit_offset, period
             )
+            """
+            从新将角度旋转回到激光雷达坐标系中，所以需要加回来之前减去的45度，
+            如果dir_labels是1的话，说明方向在是180度的，因此需要将预测的角度信息加上180度，
+            否则预测角度即是所得角度
+            """
             batch_box_preds[..., 6] = dir_rot + dir_offset + period * dir_labels.to(batch_box_preds.dtype)
 
+        # # PointPillars中无此项 不执行
         if isinstance(self.box_coder, box_coder_utils.PreviousResidualDecoder):
             batch_box_preds[..., 6] = common_utils.limit_period(
                 -(batch_box_preds[..., 6] + np.pi / 2), offset=0.5, period=np.pi * 2
