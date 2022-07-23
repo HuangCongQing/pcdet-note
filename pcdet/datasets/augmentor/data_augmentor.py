@@ -78,6 +78,35 @@ class DataAugmentor(object):
         data_dict['gt_boxes'] = gt_boxes
         data_dict['points'] = points
         return data_dict
+    
+    # 3dssd
+    def random_box_noise(self, data_dict=None, config=None):
+        if data_dict is None:
+            return partial(self.random_box_noise, config=config)
+        enable_prob = config['ENABLE_PROB']
+        loc_noise = config['LOC_NOISE']
+        scale_range = config['SCALE_RANGE']
+        rotation_range = config['ROTATION_RANGE']
+        if not isinstance(loc_noise, list):
+            loc_noise = [
+                loc_noise, loc_noise, loc_noise
+            ]
+        if not isinstance(scale_range, list):
+            scale_range = [
+                1.0 - scale_range, 1.0 + scale_range
+            ]
+        if not isinstance(rotation_range, list):
+            rotation_range = [
+                -rotation_range, rotation_range
+            ]
+        gt_boxes, points = augmentor_utils.box_noise(
+            enable_prob, data_dict['gt_boxes'], data_dict['points'],
+            loc_noise_std=loc_noise, scale_range=scale_range, rotation_range=rotation_range
+        )
+        data_dict['gt_boxes'] = gt_boxes
+        data_dict['points'] = points
+        return data_dict
+
 
     def forward(self, data_dict):
         """

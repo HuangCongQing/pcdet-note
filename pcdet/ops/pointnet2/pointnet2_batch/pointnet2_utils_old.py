@@ -1,86 +1,39 @@
-from typing import List, Tuple
+from typing import Tuple
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.autograd import Function, Variable
 
 from . import pointnet2_batch_cuda as pointnet2
 
 
-@torch.no_grad()
-def calc_dist_matrix_for_sampling(xyz: torch.Tensor, features: torch.Tensor = None,
-                                  gamma: float = 1.0):
-    dist = torch.cdist(xyz, xyz)
-    
-    if features is not None:
-        dist += torch.cdist(features, features) * gamma
-    
-    return dist
+class FurthestPointSampling(Function):
+    @staticmethod
+    def forward(ctx, xyz: torch.Tensor, npoint: int) -> torch.Tensor:
+        """
+        Uses iterative furthest point sampling to select a set of npoint features that have the largest
+        minimum distance
+        :param ctx:
+        :param xyz: (B, N, 3) where N > npoint
+        :param npoint: int, number of features in the sampled set
+        :return:
+             output: (B, npoint) tensor containing the set
+        """
+        assert xyz.is_contiguous()
+
+        B, N, _ = xyz.size()
+        output = torch.cuda.IntTensor(B, npoint)
+        temp = torch.cuda.FloatTensor(B, N).fill_(1e10)
+
+        pointnet2.furthest_point_sampling_wrapper(B, N, npoint, xyz, temp, output)
+        return output
+
+    @staticmethod
+    def backward(xyz, a=None):
+        return None, None
 
 
-@torch.no_grad()
-def furthest_point_sample(xyz: torch.Tensor, npoint: int) -> torch.Tensor:
-    """
-    Uses iterative furthest point sampling to select a set of npoint features that have the largest
-    minimum distance
-    :param ctx:
-    :param xyz: (B, N, 3) where N > npoint
-    :param npoint: int, number of features in the sampled set
-    :return:
-         output: (B, npoint) tensor containing the set
-    """
-    assert xyz.is_contiguous()
-
-    B, N, _ = xyz.size()
-    output = torch.cuda.IntTensor(B, npoint)
-    temp = torch.cuda.FloatTensor(B, N).fill_(1e10)
-
-    pointnet2.furthest_point_sampling_wrapper(B, N, npoint, xyz, temp, output)
-    return output
-
-
-@torch.no_grad()
-def furthest_point_sample_matrix(matrix: torch.Tensor, npoint: int) -> torch.Tensor:
-    """
-    Uses iterative furthest point sampling to select a set of npoint features that have the largest
-    minimum distance with a pairwise distance matrix
-    :param matrix: (B, N, N) tensor of dist matrix
-    :param npoint: int, number of features in the sampled set
-    :return:
-         output: (B, npoint) tensor containing the set
-    """
-    assert matrix.is_contiguous()
-
-    B, N, _ = matrix.size()
-    output = torch.cuda.IntTensor(B, npoint)
-    temp = torch.cuda.FloatTensor(B, N).fill_(1e10)
-
-    pointnet2.furthest_point_sampling_matrix_wrapper(B, N, npoint, matrix, temp, output)
-    return output
-
-
-@torch.no_grad()
-def furthest_point_sample_weights(xyz: torch.Tensor, weights: torch.Tensor, npoint: int) -> torch.Tensor:
-    """
-    Uses iterative furthest point sampling to select a set of npoint features that have the largest
-    minimum weighted distance
-    Args:
-        xyz: (B, N, 3), tensor of xyz coordinates
-        weights: (B, N), tensor of point weights
-        npoint: int, number of points in the sampled set
-    Returns:
-        output: (B, npoint) tensor containing the set
-    """
-    assert xyz.is_contiguous()
-    assert weights.is_contiguous()
-
-    B, N, _ = xyz.size()
-    output = torch.cuda.IntTensor(B, npoint)
-    temp = torch.cuda.FloatTensor(B, N).fill_(1e10)
-
-    pointnet2.furthest_point_sampling_weights_wrapper(B, N, npoint, xyz, weights, temp, output)
-    return output
+furthest_point_sample = FurthestPointSampling.apply
 
 
 class GatherOperation(Function):
@@ -120,9 +73,13 @@ class GatherOperation(Function):
 gather_operation = GatherOperation.apply
 
 
-def three_nn(unknown: torch.Tensor, known: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+class ThreeNN(Function):
+
+    @staticmethod
+    def forward(ctx, unknown: torch.Tensor, known: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Find the three nearest neighbors of unknown in known
+        :param ctx:
         :param unknown: (B, N, 3)
         :param known: (B, M, 3)
         :return:
@@ -139,6 +96,13 @@ def three_nn(unknown: torch.Tensor, known: torch.Tensor) -> Tuple[torch.Tensor, 
 
         pointnet2.three_nn_wrapper(B, N, m, unknown, known, dist2, idx)
         return torch.sqrt(dist2), idx
+
+    @staticmethod
+    def backward(ctx, a=None, b=None):
+        return None, None
+
+
+three_nn = ThreeNN.apply
 
 
 class ThreeInterpolate(Function):
@@ -233,51 +197,35 @@ class GroupingOperation(Function):
 grouping_operation = GroupingOperation.apply
 
 
-@torch.no_grad()
-def ball_query(radius: float, nsample: int, xyz: torch.Tensor, new_xyz: torch.Tensor):
-    """
-    :param radius: float, radius of the balls
-    :param nsample: int, maximum number of features in the balls
-    :param xyz: (B, N, 3) xyz coordinates of the features
-    :param new_xyz: (B, npoint, 3) centers of the ball query
-    :return:
-        idx_cnt: (B, npoint) tensor with the number of grouped points for each ball query
-        idx: (B, npoint, nsample) tensor with the indicies of the features that form the query balls
-    """
-    assert new_xyz.is_contiguous()
-    assert xyz.is_contiguous()
+class BallQuery(Function):
 
-    B, N, _ = xyz.size()
-    npoint = new_xyz.size(1)
-    idx = torch.cuda.IntTensor(B, npoint, nsample).zero_()
-    idx_cnt = torch.cuda.IntTensor(B, npoint).zero_()
+    @staticmethod
+    def forward(ctx, radius: float, nsample: int, xyz: torch.Tensor, new_xyz: torch.Tensor) -> torch.Tensor:
+        """
+        :param ctx:
+        :param radius: float, radius of the balls
+        :param nsample: int, maximum number of features in the balls
+        :param xyz: (B, N, 3) xyz coordinates of the features
+        :param new_xyz: (B, npoint, 3) centers of the ball query
+        :return:
+            idx: (B, npoint, nsample) tensor with the indicies of the features that form the query balls
+        """
+        assert new_xyz.is_contiguous()
+        assert xyz.is_contiguous()
 
-    pointnet2.ball_query_wrapper(B, N, npoint, radius, nsample, new_xyz, xyz, idx_cnt, idx)
-    return idx_cnt, idx
+        B, N, _ = xyz.size()
+        npoint = new_xyz.size(1)
+        idx = torch.cuda.IntTensor(B, npoint, nsample).zero_()
+
+        pointnet2.ball_query_wrapper(B, N, npoint, radius, nsample, new_xyz, xyz, idx)
+        return idx
+
+    @staticmethod
+    def backward(ctx, a=None):
+        return None, None, None, None
 
 
-@torch.no_grad()
-def ball_query_dilated(radius_in: float, radius_out: float, nsample: int, xyz: torch.Tensor, new_xyz: torch.Tensor):
-    """
-    :param radius_in: float, radius of the inner balls
-    :param radius_out: float, radius of the outer balls
-    :param nsample: int, maximum number of features in the balls
-    :param xyz: (B, N, 3) xyz coordinates of the features
-    :param new_xyz: (B, npoint, 3) centers of the ball query
-    :return:
-        idx_cnt: (B, npoint) tensor with the number of grouped points for each ball query
-        idx: (B, npoint, nsample) tensor with the indicies of the features that form the query balls
-    """
-    assert new_xyz.is_contiguous()
-    assert xyz.is_contiguous()
-
-    B, N, _ = xyz.size()
-    npoint = new_xyz.size(1)
-    idx_cnt = torch.cuda.IntTensor(B, npoint).zero_()
-    idx = torch.cuda.IntTensor(B, npoint, nsample).zero_()
-
-    pointnet2.ball_query_dilated_wrapper(B, N, npoint, radius_in, radius_out, nsample, new_xyz, xyz, idx_cnt, idx)
-    return idx_cnt, idx
+ball_query = BallQuery.apply
 
 
 class QueryAndGroup(nn.Module):
@@ -290,16 +238,15 @@ class QueryAndGroup(nn.Module):
         super().__init__()
         self.radius, self.nsample, self.use_xyz = radius, nsample, use_xyz
 
-    def forward(self, xyz: torch.Tensor, new_xyz: torch.Tensor, features: torch.Tensor = None):
+    def forward(self, xyz: torch.Tensor, new_xyz: torch.Tensor, features: torch.Tensor = None) -> Tuple[torch.Tensor]:
         """
         :param xyz: (B, N, 3) xyz coordinates of the features
         :param new_xyz: (B, npoint, 3) centroids
         :param features: (B, C, N) descriptors of the features
         :return:
-            idx_cnt: (B, npoint) tensor with the number of grouped points for each ball query
             new_features: (B, 3 + C, npoint, nsample)
         """
-        idx_cnt, idx = ball_query(self.radius, self.nsample, xyz, new_xyz)
+        idx = ball_query(self.radius, self.nsample, xyz, new_xyz)
         xyz_trans = xyz.transpose(1, 2).contiguous()
         grouped_xyz = grouping_operation(xyz_trans, idx)  # (B, 3, npoint, nsample)
         grouped_xyz -= new_xyz.transpose(1, 2).unsqueeze(-1)
@@ -314,45 +261,7 @@ class QueryAndGroup(nn.Module):
             assert self.use_xyz, "Cannot have not features and not use xyz as a feature!"
             new_features = grouped_xyz
 
-        return idx_cnt, new_features
-
-
-class QueryAndGroupDilated(nn.Module):
-    def __init__(self, radius_in: float, radius_out: float, nsample: int, use_xyz: bool = True):
-        """
-        :param radius_in: float, radius of inner ball
-        :param radius_out: float, radius of outer ball
-        :param nsample: int, maximum number of features to gather in the ball
-        :param use_xyz:
-        """
-        super().__init__()
-        self.radius_in, self.radius_out, self.nsample, self.use_xyz = radius_in, radius_out, nsample, use_xyz
-
-    def forward(self, xyz: torch.Tensor, new_xyz: torch.Tensor, features: torch.Tensor = None):
-        """
-        :param xyz: (B, N, 3) xyz coordinates of the features
-        :param new_xyz: (B, npoint, 3) centroids
-        :param features: (B, C, N) descriptors of the features
-        :return:
-            new_features: (B, 3 + C, npoint, nsample)
-            idx_cnt: (B, npoint) tensor with the number of grouped points for each ball query
-        """
-        idx_cnt, idx = ball_query_dilated(self.radius_in, self.radius_out, self.nsample, xyz, new_xyz)
-        xyz_trans = xyz.transpose(1, 2).contiguous()
-        grouped_xyz = grouping_operation(xyz_trans, idx)  # (B, 3, npoint, nsample)
-        grouped_xyz -= new_xyz.transpose(1, 2).unsqueeze(-1)
-
-        if features is not None:
-            grouped_features = grouping_operation(features, idx)
-            if self.use_xyz:
-                new_features = torch.cat([grouped_xyz, grouped_features], dim=1)  # (B, C + 3, npoint, nsample)
-            else:
-                new_features = grouped_features
-        else:
-            assert self.use_xyz, "Cannot have not features and not use xyz as a feature!"
-            new_features = grouped_xyz
-
-        return idx_cnt, new_features
+        return new_features
 
 
 class GroupAll(nn.Module):
@@ -366,7 +275,6 @@ class GroupAll(nn.Module):
         :param new_xyz: ignored
         :param features: (B, C, N) descriptors of the features
         :return:
-            idx_cnt: (B, 1)
             new_features: (B, C + 3, 1, N)
         """
         grouped_xyz = xyz.transpose(1, 2).unsqueeze(2)
@@ -378,6 +286,5 @@ class GroupAll(nn.Module):
                 new_features = grouped_features
         else:
             new_features = grouped_xyz
-        
-        idx_cnt = new_features.new_ones(new_features.size(0), 1)
-        return idx_cnt, new_features
+
+        return new_features

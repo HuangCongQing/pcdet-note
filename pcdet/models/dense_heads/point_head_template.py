@@ -20,17 +20,25 @@ class PointHeadTemplate(nn.Module):
             'cls_loss_func',
             loss_utils.SigmoidFocalClassificationLoss(alpha=0.25, gamma=2.0)
         )
-        reg_loss_type = losses_cfg.get('LOSS_REG', None)
-        if reg_loss_type == 'smooth-l1':
-            self.reg_loss_func = F.smooth_l1_loss
-        elif reg_loss_type == 'l1':
-            self.reg_loss_func = F.l1_loss
-        elif reg_loss_type == 'WeightedSmoothL1Loss':
-            self.reg_loss_func = loss_utils.WeightedSmoothL1Loss(
+        # 3dssd
+        self.add_module(
+            'reg_loss_func',
+            loss_utils.WeightedSmoothL1Loss(
                 code_weights=losses_cfg.LOSS_WEIGHTS.get('code_weights', None)
             )
-        else:
-            self.reg_loss_func = F.smooth_l1_loss
+        )
+
+        # reg_loss_type = losses_cfg.get('LOSS_REG', None)
+        # if reg_loss_type == 'smooth-l1':
+        #     self.reg_loss_func = F.smooth_l1_loss
+        # elif reg_loss_type == 'l1':
+        #     self.reg_loss_func = F.l1_loss
+        # elif reg_loss_type == 'WeightedSmoothL1Loss':
+        #     self.reg_loss_func = loss_utils.WeightedSmoothL1Loss(
+        #         code_weights=losses_cfg.LOSS_WEIGHTS.get('code_weights', None)
+        #     )
+        # else:
+        #     self.reg_loss_func = F.smooth_l1_loss
 
     @staticmethod
     def make_fc_layers(fc_cfg, input_channels, output_channels):

@@ -4,6 +4,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from . import box_utils
+# 3dssd
+from ..ops.roiaware_pool3d import roiaware_pool3d_utils
 
 # 多标签分类损失函数使用的是focal loss  ref: https://blog.csdn.net/W1995S/article/details/114687437
 # https://blog.csdn.net/W1995S/article/details/115400741
@@ -95,6 +97,7 @@ class WeightedSmoothL1Loss(nn.Module):
         """
         super(WeightedSmoothL1Loss, self).__init__()
         self.beta = beta # 0.11111
+        self.code_weights = code_weights # 3dssd修改
         if code_weights is not None:   # [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]  7维
             self.code_weights = np.array(code_weights, dtype=np.float32)
             self.code_weights = torch.from_numpy(self.code_weights).cuda()
@@ -236,3 +239,163 @@ def get_corner_loss_lidar(pred_bbox3d: torch.Tensor, gt_bbox3d: torch.Tensor):
     corner_loss = WeightedSmoothL1Loss.smooth_l1_loss(corner_dist, beta=1.0)
 
     return corner_loss.mean(dim=1)
+
+
+# 3dssd
+class WeightedBinaryCrossEntropyLoss(nn.Module):
+    """
+    Transform input to fit the fomation of PyTorch offical cross entropy loss
+    with anchor-wise weighting.
+    """
+    def __init__(self):
+        super(WeightedBinaryCrossEntropyLoss, self).__init__()
+
+    def forward(self, input: torch.Tensor, target: torch.Tensor, weights: torch.Tensor):
+        """
+        Args:
+            input: (B, #anchors, #classes) float tensor.
+                Predited logits for each class.
+            target: (B, #anchors, #classes) float tensor.
+                One-hot classification targets.
+            weights: (B, #anchors) float tensor.
+                Anchor-wise weights.
+
+        Returns:
+            loss: (B, #anchors) float tensor.
+                Weighted cross entropy loss without reduction
+        """
+        loss = F.binary_cross_entropy_with_logits(input, target, reduction='none').mean(dim=-1) * weights
+        return loss
+
+
+
+
+class PointSASALoss(nn.Module):
+    """
+    Layer-wise point segmentation loss, used for SASA.
+    """
+    def __init__(self,
+                 func: str = 'BCE',
+                 layer_weights: list = None,
+                 extra_width: list = None,
+                 set_ignore_flag: bool = False):
+        super(PointSASALoss, self).__init__()
+
+        self.layer_weights = layer_weights
+        if func == 'BCE':
+            self.loss_func = WeightedBinaryCrossEntropyLoss()
+        elif func == 'Focal':
+            self.loss_func = SigmoidFocalClassificationLoss()
+        else:
+            raise NotImplementedError
+
+        assert not set_ignore_flag or (set_ignore_flag and extra_width is not None)
+        self.extra_width = extra_width
+        self.set_ignore_flag = set_ignore_flag
+    
+    def assign_target(self, points, gt_boxes):
+        """
+        Args:
+            points: (N1 + N2 + N3 + ..., 4) [bs_idx, x, y, z]
+            gt_boxes: (B, M, 8)
+        Returns:
+            point_cls_labels: (N1 + N2 + N3 + ...)
+        """
+        assert len(points.shape) == 2 and points.shape[1] == 4, \
+            'points.shape=%s' % str(points.shape)
+        assert len(gt_boxes.shape) == 3, 'gt_boxes.shape=%s' % str(gt_boxes.shape)
+        
+        batch_size = gt_boxes.shape[0]
+        extend_gt_boxes = box_utils.enlarge_box3d(
+            gt_boxes.view(-1, gt_boxes.shape[-1]), extra_width=self.extra_width
+        ).view(batch_size, -1, gt_boxes.shape[-1]) \
+            if self.extra_width is not None else gt_boxes
+        
+        bs_idx = points[:, 0]
+        point_cls_labels = points.new_zeros(points.shape[0]).long()
+
+        for k in range(batch_size):
+            bs_mask = (bs_idx == k)
+            points_single = points[bs_mask][:, 1:4]
+            point_cls_labels_single = point_cls_labels.new_zeros(bs_mask.sum())
+
+            if not self.set_ignore_flag:
+                box_idxs_of_pts = roiaware_pool3d_utils.points_in_boxes_gpu(
+                    points_single.unsqueeze(dim=0),
+                    extend_gt_boxes[k:k + 1, :, 0:7].contiguous()
+                ).long().squeeze(dim=0)
+                box_fg_flag = (box_idxs_of_pts >= 0)
+
+            else:
+                box_idxs_of_pts = roiaware_pool3d_utils.points_in_boxes_gpu(
+                    points_single.unsqueeze(dim=0),
+                    gt_boxes[k:k + 1, :, 0:7].contiguous()
+                ).long().squeeze(dim=0)
+                box_fg_flag = (box_idxs_of_pts >= 0)
+
+                extend_box_idx_of_pts = roiaware_pool3d_utils.points_in_boxes_gpu(
+                    points_single.unsqueeze(dim=0),
+                    extend_gt_boxes[k:k + 1, :, 0:7].contiguous()
+                ).long().squeeze(dim=0)
+                ignore_flag = box_fg_flag ^ (extend_box_idx_of_pts >= 0)
+                point_cls_labels_single[ignore_flag] = -1
+
+            point_cls_labels_single[box_fg_flag] = 1
+            point_cls_labels[bs_mask] = point_cls_labels_single
+        
+        return point_cls_labels # (N, ) 0: bg, 1: fg, -1: ignore
+
+    def forward(self, l_points, l_scores, gt_boxes):
+        """
+        Args:
+            l_points: List of points, [(N, 4): bs_idx, x, y, z]
+            l_scores: List of points, [(N, 1): predicted point scores]
+            gt_boxes: (B, M, 8)
+        Returns:
+            l_labels: List of labels: [(N, 1): assigned segmentation labels]
+        """
+        l_labels = []
+        for i in range(len(self.layer_weights)):
+            li_scores = l_scores[i]
+            if li_scores is None or self.layer_weights[i] == 0:
+                l_labels.append(None)
+                continue
+            # binary segmentation labels: 0: bg, 1: fg, -1: ignore
+            li_labels = self.assign_target(l_points[i], gt_boxes)
+            l_labels.append(li_labels)
+
+        return l_labels
+
+    def loss_forward(self, l_scores, l_labels):
+        """
+        Args:
+            l_scores: List of points, [(N, 1): predicted point scores]
+            l_labels: List of points, [(N, 1): assigned segmentation labels]
+        Returns:
+            l_loss: List of segmentation loss
+        """
+        l_loss = []
+        for i in range(len(self.layer_weights)):
+            li_scores, li_labels = l_scores[i], l_labels[i]
+            if li_scores is None or li_labels is None:
+                l_loss.append(None)
+                continue
+
+            positives, negatives = li_labels > 0, li_labels == 0
+            cls_weights = positives * 1.0 + negatives * 1.0 # (N, 1)
+            pos_normalizer = cls_weights.sum(dim=0).float()
+
+            one_hot_targets = li_scores.new_zeros(
+                *list(li_labels.shape), 2
+            )
+            one_hot_targets.scatter_(-1, (li_labels > 0).long().unsqueeze(-1), 1.0)
+            one_hot_targets = one_hot_targets[:, 1:] # (N, 1)
+
+            li_loss = self.loss_func(li_scores[None],
+                                     one_hot_targets[None],
+                                     cls_weights.reshape(1, -1))
+            li_loss = self.layer_weights[i] * li_loss.sum() / torch.clamp(
+                pos_normalizer, min=1.0)
+            l_loss.append(li_loss)
+
+        return l_loss

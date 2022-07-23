@@ -1,35 +1,24 @@
 from functools import partial
 
-import spconv
 import torch
 import torch.nn as nn
 
+from ...utils.spconv_utils import replace_feature, spconv
 from ...utils import common_utils
 from .spconv_backbone import post_act_block
 
 
-from spconv.pytorch import ops
-from spconv.pytorch.conv import (SparseConv2d, SparseConv3d, SparseConvTranspose2d,
-                         SparseConvTranspose3d, SparseInverseConv2d,
-                         SparseInverseConv3d, SubMConv2d, SubMConv3d)
-from spconv.pytorch.core import SparseConvTensor
-from spconv.pytorch.identity import Identity
-from spconv.pytorch.modules import SparseModule, SparseSequential
-from spconv.pytorch.ops import ConvAlgo
-from spconv.pytorch.pool import SparseMaxPool2d, SparseMaxPool3d
-from spconv.pytorch.tables import AddTable, ConcatTable
-
-class SparseBasicBlock(SparseModule):
+class SparseBasicBlock(spconv.SparseModule):
     expansion = 1
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, indice_key=None, norm_fn=None):
         super(SparseBasicBlock, self).__init__()
-        self.conv1 = spconv.SubMConv3d(
+        self.conv1 = spconv.pytorch.SubMConv3d(
             inplanes, planes, kernel_size=3, stride=stride, padding=1, bias=False, indice_key=indice_key
         )
         self.bn1 = norm_fn(planes)
         self.relu = nn.ReLU()
-        self.conv2 = spconv.SubMConv3d(
+        self.conv2 = spconv.pytorch.SubMConv3d(
             planes, planes, kernel_size=3, stride=1, padding=1, bias=False, indice_key=indice_key
         )
         self.bn2 = norm_fn(planes)
@@ -42,17 +31,17 @@ class SparseBasicBlock(SparseModule):
         assert x.features.dim() == 2, 'x.features.dim()=%d' % x.features.dim()
 
         out = self.conv1(x)
-        out.features = self.bn1(out.features)
-        out.features = self.relu(out.features)
+        out = replace_feature(out, self.bn1(out.features))
+        out = replace_feature(out, self.relu(out.features))
 
         out = self.conv2(out)
-        out.features = self.bn2(out.features)
+        out = replace_feature(out, self.bn2(out.features))
 
         if self.downsample is not None:
             identity = self.downsample(x)
 
-        out.features += identity
-        out.features = self.relu(out.features)
+        out = replace_feature(out, out.features + identity)
+        out = replace_feature(out, self.relu(out.features))
 
         return out
 
@@ -63,6 +52,7 @@ class UNetV2(nn.Module):
     Reference Paper: https://arxiv.org/abs/1907.03670 (Shaoshuai Shi, et. al)
     From Points to Parts: 3D Object Detection from Point Cloud with Part-aware and Part-aggregation Network
     """
+
     def __init__(self, model_cfg, input_channels, grid_size, voxel_size, point_cloud_range, **kwargs):
         super().__init__()
         self.model_cfg = model_cfg
@@ -72,32 +62,32 @@ class UNetV2(nn.Module):
 
         norm_fn = partial(nn.BatchNorm1d, eps=1e-3, momentum=0.01)
 
-        self.conv_input = spconv.SparseSequential(
-            spconv.SubMConv3d(input_channels, 16, 3, padding=1, bias=False, indice_key='subm1'),
+        self.conv_input = spconv.pytorch.SparseSequential(
+            spconv.pytorch.SubMConv3d(input_channels, 16, 3, padding=1, bias=False, indice_key='subm1'),
             norm_fn(16),
             nn.ReLU(),
         )
         block = post_act_block
 
-        self.conv1 = spconv.SparseSequential(
+        self.conv1 = spconv.pytorch.SparseSequential(
             block(16, 16, 3, norm_fn=norm_fn, padding=1, indice_key='subm1'),
         )
 
-        self.conv2 = spconv.SparseSequential(
+        self.conv2 = spconv.pytorch.SparseSequential(
             # [1600, 1408, 41] <- [800, 704, 21]
             block(16, 32, 3, norm_fn=norm_fn, stride=2, padding=1, indice_key='spconv2', conv_type='spconv'),
             block(32, 32, 3, norm_fn=norm_fn, padding=1, indice_key='subm2'),
             block(32, 32, 3, norm_fn=norm_fn, padding=1, indice_key='subm2'),
         )
 
-        self.conv3 = spconv.SparseSequential(
+        self.conv3 = spconv.pytorch.SparseSequential(
             # [800, 704, 21] <- [400, 352, 11]
             block(32, 64, 3, norm_fn=norm_fn, stride=2, padding=1, indice_key='spconv3', conv_type='spconv'),
             block(64, 64, 3, norm_fn=norm_fn, padding=1, indice_key='subm3'),
             block(64, 64, 3, norm_fn=norm_fn, padding=1, indice_key='subm3'),
         )
 
-        self.conv4 = spconv.SparseSequential(
+        self.conv4 = spconv.pytorch.SparseSequential(
             # [400, 352, 11] <- [200, 176, 5]
             block(64, 64, 3, norm_fn=norm_fn, stride=2, padding=(0, 1, 1), indice_key='spconv4', conv_type='spconv'),
             block(64, 64, 3, norm_fn=norm_fn, padding=1, indice_key='subm4'),
@@ -107,9 +97,9 @@ class UNetV2(nn.Module):
         if self.model_cfg.get('RETURN_ENCODED_TENSOR', True):
             last_pad = self.model_cfg.get('last_pad', 0)
 
-            self.conv_out = spconv.SparseSequential(
+            self.conv_out = spconv.pytorch.SparseSequential(
                 # [200, 150, 5] -> [200, 150, 2]
-                spconv.SparseConv3d(64, 128, (3, 1, 1), stride=(2, 1, 1), padding=last_pad,
+                SparseConv3d(64, 128, (3, 1, 1), stride=(2, 1, 1), padding=last_pad,
                                     bias=False, indice_key='spconv_down2'),
                 norm_fn(128),
                 nn.ReLU(),
@@ -137,7 +127,7 @@ class UNetV2(nn.Module):
         self.conv_up_t1 = SparseBasicBlock(16, 16, indice_key='subm1', norm_fn=norm_fn)
         self.conv_up_m1 = block(32, 16, 3, norm_fn=norm_fn, indice_key='subm1')
 
-        self.conv5 = spconv.SparseSequential(
+        self.conv5 = spconv.pytorch.SparseSequential(
             block(16, 16, 3, norm_fn=norm_fn, padding=1, indice_key='subm1')
         )
         self.num_point_features = 16
@@ -145,10 +135,10 @@ class UNetV2(nn.Module):
     def UR_block_forward(self, x_lateral, x_bottom, conv_t, conv_m, conv_inv):
         x_trans = conv_t(x_lateral)
         x = x_trans
-        x.features = torch.cat((x_bottom.features, x_trans.features), dim=1)
+        x = replace_feature(x, torch.cat((x_bottom.features, x_trans.features), dim=1))
         x_m = conv_m(x)
         x = self.channel_reduction(x, x_m.features.shape[1])
-        x.features = x_m.features + x.features
+        x = replace_feature(x, x_m.features + x.features)
         x = conv_inv(x)
         return x
 
@@ -166,7 +156,7 @@ class UNetV2(nn.Module):
         n, in_channels = features.shape
         assert (in_channels % out_channels == 0) and (in_channels >= out_channels)
 
-        x.features = features.view(n, out_channels, -1).sum(dim=2)
+        x = replace_feature(x, features.view(n, out_channels, -1).sum(dim=2))
         return x
 
     def forward(self, batch_dict):

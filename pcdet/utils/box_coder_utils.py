@@ -253,3 +253,147 @@ class PointResidualCoder(object):
 
         cgs = [t for t in cts]
         return torch.cat([xg, yg, zg, dxg, dyg, dzg, rg, *cgs], dim=-1)
+
+
+# 3dssd
+
+class PointBinResidualCoder(object):
+    def __init__(self, code_size=30, use_mean_size=True, angle_bin_num=12, pred_velo=False, **kwargs):
+        super().__init__()
+        self.code_size = 6 + 2 * angle_bin_num
+        self.angle_bin_num = angle_bin_num
+        self.pred_velo = pred_velo
+        if pred_velo:
+            self.code_size += 2
+        self.use_mean_size = use_mean_size
+        if self.use_mean_size:
+            self.mean_size = torch.from_numpy(np.array(kwargs['mean_size'])).cuda().float()
+            assert self.mean_size.min() > 0
+
+    def encode_angle_torch(self, angle):
+        """
+        Args:
+            angle: (N)
+        Returns:
+            angle_cls: (N, angle_bin_num)
+            angle_res: (N, angle_bin_num)
+        """
+        angle = torch.remainder(angle, np.pi * 2.0)
+        angle_per_class = np.pi * 2.0 / float(self.angle_bin_num)
+        shifted_angle = torch.remainder(angle + angle_per_class / 2.0, np.pi * 2.0)
+
+        angle_cls_f = (shifted_angle / angle_per_class).floor()
+        angle_cls = angle_cls_f.new_zeros(*list(angle_cls_f.shape), self.angle_bin_num)
+        angle_cls.scatter_(-1, angle_cls_f.unsqueeze(-1).long(), 1.0)
+
+        angle_res = shifted_angle - (angle_cls_f * angle_per_class + angle_per_class / 2.0)
+        angle_res = angle_res / angle_per_class  # normalize residual angle to [0, 1]
+        angle_res = angle_cls * angle_res.unsqueeze(-1)
+        return angle_cls, angle_res
+
+    def decode_angle_torch(self, angle_cls, angle_res):
+        """
+        Args:
+            angle_cls: (N, angle_bin_num)
+            angle_res: (N, angle_bin_num)
+        Returns:
+            angle: (N)
+        """
+        angle_cls_idx = angle_cls.argmax(dim=-1)
+        angle_cls_onehot = angle_cls.new_zeros(angle_cls.shape)
+        angle_cls_onehot.scatter_(-1, angle_cls_idx.unsqueeze(-1), 1.0)
+
+        angle_res = (angle_cls_onehot * angle_res).sum(dim=-1)
+        angle = (angle_cls_idx.float() + angle_res) * (np.pi * 2.0 / float(self.angle_bin_num))
+        return angle
+
+    def encode_torch(self, gt_boxes, points, gt_classes=None):
+        """
+        Args:
+            gt_boxes: (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...]
+            points: (N, 3) [x, y, z]
+            gt_classes: (N) [1, num_classes]
+        Returns:
+            box_coding: (N, 6 + 2 * B + C)
+        """
+        gt_boxes[:, 3:6] = torch.clamp_min(gt_boxes[:, 3:6], min=1e-5)
+
+        xg, yg, zg, dxg, dyg, dzg, rg, *cgs = torch.split(gt_boxes, 1, dim=-1)
+        xa, ya, za = torch.split(points, 1, dim=-1)
+
+        if self.use_mean_size:
+            assert gt_classes.max() <= self.mean_size.shape[0]
+            point_anchor_size = self.mean_size[gt_classes - 1]
+            dxa, dya, dza = torch.split(point_anchor_size, 1, dim=-1)
+            diagonal = torch.sqrt(dxa ** 2 + dya ** 2)
+            xt = (xg - xa) / diagonal
+            yt = (yg - ya) / diagonal
+            zt = (zg - za) / dza
+            dxt = torch.log(dxg / dxa)
+            dyt = torch.log(dyg / dya)
+            dzt = torch.log(dzg / dza)
+        else:
+            xt = (xg - xa)
+            yt = (yg - ya)
+            zt = (zg - za)
+            dxt = torch.log(dxg)
+            dyt = torch.log(dyg)
+            dzt = torch.log(dzg)
+
+        rg_cls, rg_reg = self.encode_angle_torch(rg.squeeze(-1))
+        cts = [g for g in cgs]
+        return torch.cat([xt, yt, zt, dxt, dyt, dzt, rg_cls, rg_reg, *cts], dim=-1)
+
+    def decode_torch_kernel(self, box_offsets, box_angle_cls, box_angle_reg, points, pred_classes=None):
+        """
+        Args:
+            box_offsets: (N, 6) [x, y, z, dx, dy, dz]
+            box_angle_cls: (N, angle_bin_num)
+            box_angle_reg: (N, angle_bin_num)
+            points: [x, y, z]
+            pred_classes: (N) [1, num_classes]
+        Returns:
+            boxes3d: (N, 7)
+        """
+        xt, yt, zt, dxt, dyt, dzt = torch.split(box_offsets, 1, dim=-1)
+        xa, ya, za = torch.split(points, 1, dim=-1)
+
+        if self.use_mean_size:
+            assert pred_classes.max() <= self.mean_size.shape[0]
+            point_anchor_size = self.mean_size[pred_classes - 1]
+            dxa, dya, dza = torch.split(point_anchor_size, 1, dim=-1)
+            diagonal = torch.sqrt(dxa ** 2 + dya ** 2)
+            xg = xt * diagonal + xa
+            yg = yt * diagonal + ya
+            zg = zt * dza + za
+
+            dxg = torch.exp(dxt) * dxa
+            dyg = torch.exp(dyt) * dya
+            dzg = torch.exp(dzt) * dza
+        else:
+            xg = xt + xa
+            yg = yt + ya
+            zg = zt + za
+            dxg = torch.exp(dxt)
+            dyg = torch.exp(dyt)
+            dzg = torch.exp(dzt)
+
+        rg = self.decode_angle_torch(box_angle_cls, box_angle_reg).unsqueeze(-1)
+        return torch.cat([xg, yg, zg, dxg, dyg, dzg, rg], dim=-1)
+
+    def decode_torch(self, box_encodings, points, pred_classes=None):
+        """
+        Args:
+            box_encodings: (N, 8 + C) [x, y, z, dx, dy, dz, cos, sin, ...]
+            points: [x, y, z]
+            pred_classes: (N) [1, num_classes]
+        Returns:
+            boxes3d: (N, 7)
+        """
+        box_offsets = box_encodings[:, :6]
+        box_angle_cls = box_encodings[:, 6:6 + self.angle_bin_num]
+        box_angle_reg = box_encodings[:, 6 + self.angle_bin_num:6 + self.angle_bin_num * 2]
+        cgs = box_encodings[:, 6 + self.angle_bin_num * 2:]
+
+        boxes3d = self.decode_torch_kernel(box_offsets, box_angle_cls, box_angle_reg, points, pred_classes)
+        return torch.cat([boxes3d, cgs], dim=-1)

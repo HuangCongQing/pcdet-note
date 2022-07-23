@@ -16,11 +16,11 @@ class PartA2FCHead(RoIHeadTemplate):
         block = self.post_act_block
 
         c0 = self.model_cfg.ROI_AWARE_POOL.NUM_FEATURES // 2
-        self.conv_part = spconv.SparseSequential(
+        self.conv_part = spconv.pytorch.SparseSequential(
             block(4, 64, 3, padding=1, indice_key='rcnn_subm1'),
             block(64, c0, 3, padding=1, indice_key='rcnn_subm1_1'),
         )
-        self.conv_rpn = spconv.SparseSequential(
+        self.conv_rpn = spconv.pytorch.SparseSequential(
             block(input_channels, 64, 3, padding=1, indice_key='rcnn_subm2'),
             block(64, c0, 3, padding=1, indice_key='rcnn_subm1_2'),
         )
@@ -78,20 +78,20 @@ class PartA2FCHead(RoIHeadTemplate):
 
     def post_act_block(self, in_channels, out_channels, kernel_size, indice_key, stride=1, padding=0, conv_type='subm'):
         if conv_type == 'subm':
-            m = spconv.SparseSequential(
-                spconv.SubMConv3d(in_channels, out_channels, kernel_size, bias=False, indice_key=indice_key),
+            m = spconv.pytorch.SparseSequential(
+                spconv.pytorch.SubMConv3d(in_channels, out_channels, kernel_size, bias=False, indice_key=indice_key),
                 nn.BatchNorm1d(out_channels, eps=1e-3, momentum=0.01),
                 nn.ReLU(),
             )
         elif conv_type == 'spconv':
-            m = spconv.SparseSequential(
-                spconv.SparseConv3d(in_channels, out_channels, kernel_size, stride=stride, padding=padding,
+            m = spconv.pytorch.SparseSequential(
+                SparseConv3d(in_channels, out_channels, kernel_size, stride=stride, padding=padding,
                                     bias=False, indice_key=indice_key),
                 nn.BatchNorm1d(out_channels, eps=1e-3, momentum=0.01),
                 nn.ReLU(),
             )
         elif conv_type == 'inverseconv':
-            m = spconv.SparseSequential(
+            m = spconv.pytorch.SparseSequential(
                 spconv.SparseInverseConv3d(in_channels, out_channels, kernel_size,
                                            indice_key=indice_key, bias=False),
                 nn.BatchNorm1d(out_channels, eps=1e-3, momentum=0.01),
