@@ -4,7 +4,7 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2021-07-20 20:34:59
-LastEditTime: 2021-08-07 15:47:27
+LastEditTime: 2022-05-06 16:16:18
 FilePath: /PCDet/tools/eval_utils/eval_utils.py
 '''
 import pickle
@@ -22,7 +22,7 @@ def statistics_info(cfg, ret_dict, metric, disp_dict):
     for cur_thresh in cfg.MODEL.POST_PROCESSING.RECALL_THRESH_LIST:
         metric['recall_roi_%s' % str(cur_thresh)] += ret_dict.get('roi_%s' % str(cur_thresh), 0)
         metric['recall_rcnn_%s' % str(cur_thresh)] += ret_dict.get('rcnn_%s' % str(cur_thresh), 0)
-    metric['gt_num'] += ret_dict.get('gt', 0)
+    metric['gt_num'] += ret_dict.get('gt', 0) # 
     min_thresh = cfg.MODEL.POST_PROCESSING.RECALL_THRESH_LIST[0]
     disp_dict['recall_%s' % str(min_thresh)] = \
         '(%d, %d) / %d' % (metric['recall_roi_%s' % str(min_thresh)], metric['recall_rcnn_%s' % str(min_thresh)], metric['gt_num'])
@@ -34,7 +34,7 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
     final_output_dir = result_dir / 'final_result' / 'data'
     if save_to_file:
         final_output_dir.mkdir(parents=True, exist_ok=True)
-
+    # 初始化metric
     metric = {
         'gt_num': 0,
     }
@@ -66,7 +66,7 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
             pred_dicts, ret_dict = model(batch_dict) # 模型训练==============batch_dict（包含GT ）=======================
         disp_dict = {}
 
-        statistics_info(cfg, ret_dict, metric, disp_dict)
+        statistics_info(cfg, ret_dict, metric, disp_dict) # 统计信息
         annos = dataset.generate_prediction_dicts(
             batch_dict, pred_dicts, class_names,
             output_path=final_output_dir if save_to_file else None
@@ -100,8 +100,9 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
 
     gt_num_cnt = metric['gt_num']
     for cur_thresh in cfg.MODEL.POST_PROCESSING.RECALL_THRESH_LIST:
-        cur_roi_recall = metric['recall_roi_%s' % str(cur_thresh)] / max(gt_num_cnt, 1)
+        cur_roi_recall = metric['recall_roi_%s' % str(cur_thresh)] / max(gt_num_cnt, 1) # 
         cur_rcnn_recall = metric['recall_rcnn_%s' % str(cur_thresh)] / max(gt_num_cnt, 1)
+        # 输出log信息
         logger.info('recall_roi_%s: %f' % (cur_thresh, cur_roi_recall))
         logger.info('recall_rcnn_%s: %f' % (cur_thresh, cur_rcnn_recall))
         ret_dict['recall/roi_%s' % str(cur_thresh)] = cur_roi_recall
@@ -110,8 +111,18 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
     total_pred_objects = 0
     for anno in det_annos:
         total_pred_objects += anno['name'].__len__()
+    # 平均一帧预测障碍物数量
     logger.info('Average predicted number of objects(%d samples): %.3f'
                 % (len(det_annos), total_pred_objects / max(1, len(det_annos))))
+    '''
+    2022-05-06 16:06:23,219   INFO  recall_roi_0.3: 0.168812
+    2022-05-06 16:06:23,219   INFO  recall_rcnn_0.3: 0.169495
+    2022-05-06 16:06:23,220   INFO  recall_roi_0.5: 0.000911
+    2022-05-06 16:06:23,220   INFO  recall_rcnn_0.5: 0.000911
+    2022-05-06 16:06:23,220   INFO  recall_roi_0.7: 0.000000
+    2022-05-06 16:06:23,220   INFO  recall_rcnn_0.7: 0.000000
+    2022-05-06 16:06:23,221   INFO  Average predicted number of objects(3769 samples): 47.066
+    '''
 
     with open(result_dir / 'result.pkl', 'wb') as f:
         pickle.dump(det_annos, f)
