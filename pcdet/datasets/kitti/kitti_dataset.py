@@ -1,7 +1,7 @@
 '''
 Author: https://blog.csdn.net/weixin_44128857/article/details/108516213
 Date: 2021-07-30 11:53:21
-LastEditTime: 2022-04-16 18:15:46
+LastEditTime: 2022-07-25 00:49:25
 LastEditors: Please set LastEditors
 Description: 最重要函数:def get_infos()==========================================================
 FilePath: /PCDet/pcdet/datasets/kitti/kitti_dataset.py
@@ -447,7 +447,7 @@ class KittiDataset(DatasetTemplate):
         #     all_gt_boxes.append((gt_boxes))
             # num_obj是有效物体的个数，为N
             # num_obj = gt_boxes.shape[0]
-        return infos[8]['annos']['gt_boxes_lidar']
+        return infos[k]['annos']['gt_boxes_lidar']
         # return all_gt_boxes
 
 
