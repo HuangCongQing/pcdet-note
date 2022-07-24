@@ -109,7 +109,7 @@ def main():
             # )
             # mlab.show(stop=True)
             # logger.info('Number of labels:{}'.format(len))
-            logger.info('Number of label:{}'.format(len(pred_dicts[0]['pred_labels'].cpu().numpy()))) #
+            logger.info('Number of 预测label:{}'.format(len(pred_dicts[0]['pred_labels'].cpu().numpy()))) #
             labels = ['None', 'Car', 'Pedestrian', 'Cyclists']
             for i in range(4):
                 logger.info('\t {}; {}'.format((i, labels[i]), (pred_dicts[0]['pred_labels'].cpu()==i).sum()))

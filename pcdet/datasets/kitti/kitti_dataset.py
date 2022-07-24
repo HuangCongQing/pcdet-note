@@ -402,6 +402,56 @@ class KittiDataset(DatasetTemplate):
         with open(db_info_save_path, 'wb') as f:
             pickle.dump(all_db_infos, f)
 
+    def get_gt(self, info_path=None, used_classes=None, split='train', k=None):
+        import torch
+
+        # 创建保存文件的路径  root_path的路径是/data/kitti/
+        # 如果是“train”，创建的路径是  /data/kitti/gt_database
+        # from pathlib import Path
+        # database_save_path = Path(self.root_path) / ('gt_database' if split == 'train' else ('gt_database_%s' % split))
+        # # 在/data/kitti/下创建保存 info的文件
+        # db_info_save_path = Path(self.root_path) / ('kitti_dbinfos_%s.pkl' % split)
+        #
+        # database_save_path.mkdir(parents=True, exist_ok=True)
+        all_db_infos = {}
+        all_gt_boxes = []
+
+        # 传入的参数 info_path 是一个.pkl文件，ROOT_DIR / 'data' / 'kitti'/('kitti_infos_%s.pkl' % train_split)
+        with open(info_path, 'rb') as f:
+            infos = pickle.load(f)
+
+        # 调取infos里的每个info的信息，一个info是一帧的数据
+        # for k in range(len(infos)):
+        #     # 输出的是 第几个样本 如7/780
+        #     print('gt_database sample: %d/%d' % (k + 1, len(infos)))
+        #     info = infos[k]
+        #     # 取train.txt 里面的样本序列，其实就是data/kitti/ImageSets/train.txt里面的数字序列，
+        #     # 如000000，000003,000007....
+        #     sample_idx = info['point_cloud']['lidar_idx']
+        #
+        #     # 读取该 bin文件类型，并将点云数据以 numpy的格式输出！！！
+        #     # 将数据 转换成 每行四个数据，刚好是一个点云数据的四个参数：X,Y,Z,R(强度或反射值）
+        #     # 故 points是一个数组（M,4）
+        #     points = self.get_lidar(sample_idx)
+        #     annos = info['annos']
+        #     # name的数据是['car','car','pedestrian'...'dontcare'...]表示当前帧里面的所有物体objects
+        #     names = annos['name']
+        #     # difficulty：[0,1,2,-1,0,0,-1,1,...,]里面具体物体的难度，长度为总物体的个数
+        #     difficulty = annos['difficulty']
+        #     # bbox是一个数组，表示物体2D边框的个数，
+        #     # 假设有效物体为N,dontcare个数为n,则bbox：（N+n,4）
+        #     bbox = annos['bbox']
+        #     # 同样是一个数组：（N,7）,:  x,y,z,dx,dy,dz,heading，为有效物体的信息
+        #     gt_boxes = annos['gt_boxes_lidar']
+        #     # print("gt_boxes", gt_boxes)
+        #     all_gt_boxes.append((gt_boxes))
+            # num_obj是有效物体的个数，为N
+            # num_obj = gt_boxes.shape[0]
+        return infos[8]['annos']['gt_boxes_lidar']
+        # return all_gt_boxes
+
+
+
     @staticmethod # 生成预测结果
     def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None):
         """
