@@ -4,8 +4,8 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2021-05-02 23:48:58
-LastEditTime: 2021-09-05 23:46:20
-FilePath: /PCDet/tools/demo.py
+LastEditTime: 2022-07-27 11:27:15
+FilePath: /PCDet/tools/demo_include_gt.py
 '''
 import argparse
 import glob
@@ -24,6 +24,8 @@ from pcdet.utils import common_utils
 from visual_utils import visualize_utils as V # 可视化函数库
 
 from pcdet.datasets import KittiDataset # 显示GT
+# ros2
+import rclpy
 
 # 加载数据(from: pcdet/datasets/dataset.py)
 class DemoDataset(DatasetTemplate):
@@ -94,13 +96,20 @@ def main():
     logger.info(f'【demo.py】Total number of samples: \t{len(demo_dataset)}') # 文件数量
 
     # GT 获取=============
-    data_path = Path("/home/hcq/tensorrt/PCDet/data/kitti")
-    dataset = KittiDataset(dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, root_path=data_path, training=False) # class实例化
-    train_split, val_split = 'train', 'val'
-    train_filename = "/home/hcq/tensorrt/PCDet/data/kitti/kitti_infos_train.pkl"
-    gt_boxes = dataset.get_gt(train_filename, split=train_split, k =int(args.data_path.split('.')[-2][-1]))
-    # choice_index = int(args.data_path.split('.')[-2][-1])
-    gt_boxes = torch.tensor(gt_boxes)
+    # data_path = Path("/home/hcq/tensorrt/PCDet/data/kitti")
+    # dataset = KittiDataset(dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, root_path=data_path, training=False) # class实例化
+    # train_split, val_split = 'train', 'val'
+    pkl_path = "../data/kitti/kitti_infos_train.pkl"
+    # gt_boxes = dataset.get_gt(pkl_path, split=train_split, k =int(args.data_path.split('.')[-2][-1]))
+    # # choice_index = int(args.data_path.split('.')[-2][-1])
+    # gt_boxes = torch.tensor(gt_boxes)
+
+    import pickle
+    with open(pkl_path, 'rb') as f:
+        infos = pickle.load(f)
+    k =int(args.data_path.split('.')[-2][-1])
+    # gt_boxes= infos[k]['annos']['gt_boxes_lidar']
+    gt_boxes= infos[k]['annos']['gt_boxes_lidar']
 
 
     # 2 调用的这些包就是pcdet/models/detectors下的某个py文件，# class PVRCNN(Detector3DTemplate):
@@ -137,5 +146,8 @@ def main():
 
 
 if __name__ == '__main__':
+
+    rclpy.init() # 添加
     main()
+    rclpy.shutdown()
 

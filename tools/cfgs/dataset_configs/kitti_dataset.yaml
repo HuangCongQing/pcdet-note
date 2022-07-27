@@ -44,14 +44,14 @@ DATA_AUGMENTOR:
           
         #通过随机翻转、旋转、放缩改变一部分dataset中gt_boxes和points的值，以增强数据
         #详细代码在头文件中的pcdet/datasets/augmentor/data_augmentor.py
-        - NAME: random_world_flip # #随机翻转
-          ALONG_AXIS_LIST: ['x'] #沿x轴
+        # - NAME: random_world_flip # #随机翻转
+        #   ALONG_AXIS_LIST: ['x'] #沿x轴
 
-        - NAME: random_world_rotation #  #随机旋转
-          WORLD_ROT_ANGLE: [-0.78539816, 0.78539816] #旋转角度
+        # - NAME: random_world_rotation #  #随机旋转
+        #   WORLD_ROT_ANGLE: [-0.78539816, 0.78539816] #旋转角度
 
-        - NAME: random_world_scaling  #随机缩放
-          WORLD_SCALE_RANGE: [0.95, 1.05] #范围
+        # - NAME: random_world_scaling  #随机缩放
+        #   WORLD_SCALE_RANGE: [0.95, 1.05] #范围
 
 # POINT_FEATURE_ENCODING定位在pcdet/dataset/processor/point_feature_encoder.py
 # 点特征编码

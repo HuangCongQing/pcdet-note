@@ -3,41 +3,40 @@ CLASS_NAMES: ['Car']  # 'Pedestrain', 'Cyclist'
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml
 
-    DATA_AUGMENTOR:
-        DISABLE_AUG_LIST: ['placeholder']
-        AUG_CONFIG_LIST:
-            -   NAME: gt_sampling
-                USE_ROAD_PLANE: True
-                DB_INFO_PATH:
-                    - kitti_dbinfos_train.pkl
-                PREPARE: {
-                    filter_by_min_points: [ 'Car:5' ],  # 'Pedestrian:10', 'Cyclist:10'
-                    filter_by_difficulty: [ -1 ],
-                }
-
-                SAMPLE_GROUPS: [ 'Car: 15' ]  # 'Pedestrian:8', 'Cyclist:8'
-                NUM_POINT_FEATURES: 4
-                DATABASE_WITH_FAKELIDAR: False
-                REMOVE_EXTRA_WIDTH: [ 0.0, 0.0, 0.0 ]
-                LIMIT_WHOLE_SCENE: False
+    # DATA_AUGMENTOR:
+    #     DISABLE_AUG_LIST: ['placeholder']
+    #     AUG_CONFIG_LIST:
+    #         -   NAME: gt_sampling # 数据库增强(SECOND中提出)
+    #             USE_ROAD_PLANE: True
+    #             DB_INFO_PATH:
+    #                 - kitti_dbinfos_train.pkl
+    #             PREPARE: {
+    #                 filter_by_min_points: [ 'Car:5' ],  # 'Pedestrian:10', 'Cyclist:10'
+    #                 filter_by_difficulty: [ -1 ],
+    #             }
+    #             SAMPLE_GROUPS: [ 'Car: 15' ]  # 'Pedestrian:8', 'Cyclist:8'
+    #             NUM_POINT_FEATURES: 4
+    #             DATABASE_WITH_FAKELIDAR: False
+    #             REMOVE_EXTRA_WIDTH: [ 0.0, 0.0, 0.0 ]
+    #             LIMIT_WHOLE_SCENE: False
         
-            -   NAME: random_world_flip
-                ENABLE_PROB: 0.5
-                ALONG_AXIS_LIST: [ 'x' ]
+    #         -   NAME: random_world_flip
+    #             ENABLE_PROB: 0.5
+    #             ALONG_AXIS_LIST: [ 'x' ]
         
-            -   NAME: random_box_noise
-                ENABLE_PROB: 0.5
-                LOC_NOISE: [ 1.0, 1.0, 0.0 ]
-                SCALE_RANGE: [ 1.0, 1.0 ]
-                ROTATION_RANGE: [ -1.04719755, 1.04719755 ]
+    #         -   NAME: random_box_noise
+    #             ENABLE_PROB: 0.5
+    #             LOC_NOISE: [ 1.0, 1.0, 0.0 ]
+    #             SCALE_RANGE: [ 1.0, 1.0 ]
+    #             ROTATION_RANGE: [ -1.04719755, 1.04719755 ]
         
-            -   NAME: random_world_rotation
-                ENABLE_PROB: 0.5
-                WORLD_ROT_ANGLE: [ -0.78539816, 0.78539816 ]
+    #         -   NAME: random_world_rotation
+    #             ENABLE_PROB: 0.5
+    #             WORLD_ROT_ANGLE: [ -0.78539816, 0.78539816 ]
         
-            -   NAME: random_world_scaling
-                ENABLE_PROB: 0.5
-                WORLD_SCALE_RANGE: [ 0.9, 1.1 ]
+    #         -   NAME: random_world_scaling
+    #             ENABLE_PROB: 0.5
+    #             WORLD_SCALE_RANGE: [ 0.9, 1.1 ]
 
     DATA_PROCESSOR:
         -   NAME: mask_points_and_boxes_outside_range
@@ -114,7 +113,7 @@ MODEL:
                 'extra_width': [1.0, 1.0, 1.0],
                 'layer_weights': [0.01, 0.1, 0]
             }
-            AXIS_ALIGNED_IOU_LOSS_REGULARIZATION: True
+            AXIS_ALIGNED_IOU_LOSS_REGULARIZATION: True # loss
             CORNER_LOSS_REGULARIZATION: True
             LOSS_WEIGHTS: {
                 'vote_reg_weight': 1.0,
@@ -146,7 +145,8 @@ OPTIMIZATION:
     NUM_EPOCHS: 80
 
     OPTIMIZER: adam_onecycle
-    LR: 0.01
+    # LR: 0.01
+    LR: 0.001
     WEIGHT_DECAY: 0.01
     MOMENTUM: 0.9
 

@@ -9,6 +9,9 @@ from ...ops.pointnet2.pointnet2_batch import pointnet2_modules
 from ...utils import box_coder_utils, box_utils, common_utils, loss_utils
 from .point_head_template import PointHeadTemplate
 
+# ros2 rviz
+from tools.visualize_ros2 import PointCloudPublisher
+
 # 投票
 class PointHeadVote(PointHeadTemplate):
     """
@@ -27,6 +30,8 @@ class PointHeadVote(PointHeadTemplate):
             output_channels=3,
             fc_list=self.vote_cfg.VOTE_FC
         )
+        # # ros vis
+        self.pub = PointCloudPublisher("sasa_pub",interval=1)
 
         self.sa_cfg = self.model_cfg.SA_CONFIG
         channel_in, channel_out = input_channels, 0
@@ -406,13 +411,23 @@ class PointHeadVote(PointHeadTemplate):
             )
         else:
             raise NotImplementedError
-
+    
         return targets_dict
 
+    # vote_loss_reg=point_loss_vote
     def get_vote_layer_loss(self, tb_dict=None):
         pos_mask = self.forward_ret_dict['vote_cls_labels'] > 0
         vote_reg_labels = self.forward_ret_dict['vote_reg_labels']
-        vote_reg_preds = self.forward_ret_dict['point_vote_coords']
+        vote_reg_preds = self.forward_ret_dict['point_vote_coords'] # 采样点256===========================================
+        print(vote_reg_preds.shape) # torch.Size([256, 3])
+        # print(vote_reg_preds)
+
+        # self.pub.update_counter()
+        # if self.pub.is_ok() and self.training:
+        #     with torch.no_grad():
+        #         print("发布topic==================================================")
+        #         # self.pub.publish(vote_reg_points, topic='anyway')
+        #         self.pub.publish(vote_reg_preds.detach().cpu().numpy().astype(np.float32), 'vote_cloud') # 采样点
 
         reg_weights = pos_mask.float()
         pos_normalizer = pos_mask.sum().float()
@@ -665,7 +680,7 @@ class PointHeadVote(PointHeadTemplate):
 
     def get_loss(self, tb_dict=None):
         tb_dict = {} if tb_dict is None else tb_dict
-        point_loss_vote, tb_dict_0 = self.get_vote_layer_loss()
+        point_loss_vote, tb_dict_0 = self.get_vote_layer_loss() # vote loss
 
         point_loss_cls, cls_weights, tb_dict_1 = self.get_cls_layer_loss()
         point_loss_box, box_weights, tb_dict_2 = self.get_box_layer_loss()
@@ -688,7 +703,7 @@ class PointHeadVote(PointHeadTemplate):
             tb_dict.update(tb_dict_3)
             point_loss += point_loss_sasa
         return point_loss, tb_dict
-
+    # =========================================================================main
     def forward(self, batch_dict):
         """
         Args:
@@ -730,18 +745,24 @@ class PointHeadVote(PointHeadTemplate):
         vote_translation_range = torch.from_numpy(vote_translation_range).cuda().unsqueeze(dim=0).unsqueeze(dim=-1)
         vote_offsets = torch.max(vote_offsets, -vote_translation_range)
         vote_offsets = torch.min(vote_offsets, vote_translation_range)
-        vote_coords = candidate_coords + vote_offsets.permute(0, 2, 1).contiguous()
+        # 采样点 = 候选点+offset
+        vote_coords = candidate_coords + vote_offsets.permute(0, 2, 1).contiguous() # 得到采样点？？？？？？？？？
 
         ret_dict = {'batch_size': batch_size,
                     'point_candidate_coords': candidate_coords.view(-1, 3).contiguous(),
-                    'point_vote_coords': vote_coords.view(-1, 3).contiguous()}
+                    'point_vote_coords': vote_coords.view(-1, 3).contiguous(),
+                    'point_vote_offsets': vote_offsets.permute(0, 2, 1).contiguous()}
 
         sample_batch_idx_flatten = sample_batch_idx.view(-1, 1).contiguous()  # (N, 1)
         batch_dict['batch_index'] = sample_batch_idx_flatten.squeeze(-1)
         batch_dict['point_candidate_coords'] = torch.cat(  # (N, 4)
             (sample_batch_idx_flatten, ret_dict['point_candidate_coords']), dim=-1)
+        # 采样点
         batch_dict['point_vote_coords'] = torch.cat(  # (N, 4)
             (sample_batch_idx_flatten, ret_dict['point_vote_coords']), dim=-1)
+        # 添加一个offset error
+        # batch_dict['point_vote_offsets'] = torch.cat(  # (N, 4)
+        #     (sample_batch_idx_flatten, ret_dict['point_vote_offsets']), dim=-1)
 
         if self.training:  # assign targets for vote loss
             extra_width = self.model_cfg.TARGET_CONFIG.get('VOTE_EXTRA_WIDTH', None)
@@ -795,6 +816,15 @@ class PointHeadVote(PointHeadTemplate):
                     'point_sasa_preds': batch_dict['point_scores_list'],
                     'point_sasa_labels': point_sasa_labels
                 })
+            # 可视化预测结果需要！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+            point_cls_preds, point_box_preds = self.generate_predicted_boxes(
+                points=batch_dict['point_vote_coords'][:, 1:4],
+                point_cls_preds=point_cls_preds, point_box_preds=point_reg_preds
+            )
+            batch_dict['batch_cls_preds'] = point_cls_preds
+            batch_dict['batch_box_preds'] = point_box_preds # 预测结果
+            batch_dict['cls_preds_normalized'] = False
+            # end
 
         if not self.training or self.predict_boxes_when_training:
             point_cls_preds, point_box_preds = self.generate_predicted_boxes(
@@ -802,9 +832,34 @@ class PointHeadVote(PointHeadTemplate):
                 point_cls_preds=point_cls_preds, point_box_preds=point_reg_preds
             )
             batch_dict['batch_cls_preds'] = point_cls_preds
-            batch_dict['batch_box_preds'] = point_box_preds
+            batch_dict['batch_box_preds'] = point_box_preds # 预测结果
             batch_dict['cls_preds_normalized'] = False
+        # publish
 
-        self.forward_ret_dict = ret_dict
+        self.forward_ret_dict = ret_dict # 赋值，用于后面loss计算？？？
+        # 可视化batch_dict里的数据
+        # self.pub.update_counter()
+        # if self.pub.is_ok() and self.training:
+        #     with torch.no_grad():
+        #         print("发布topic==================================================")
+        #         points = batch_dict['points'][:, 1:4]
+        #         points = points.detach().cpu().numpy()
+        #         # points= np.transpose(points, (0, 2, 1))
+        #         # points= points[:, [2, 0, 1]]
+        #
+        #         vote_reg_preds = batch_dict['point_vote_coords'][:,1:]
+        #         # boxes visualization
+        #         gt_bboxes = torch.squeeze(batch_dict['gt_boxes'])[:,[7,0,1,2,3,4,5,6]] # (1,6,8)
+        #         # 预测结果
+        #         # pred_bboxes = ret_dict['batch_box_preds']  # (256,7)
+        #         # pred_cls = batch_dict['point_cls_labels']  # (256,1)
+        #
+        #         # self.pub.publish(vote_reg_points, topic='anyway')
+        #         self.pub.publish(points, 'raw_cloud')  #
+        #         self.pub.publish(vote_reg_preds.detach().cpu().numpy().astype(np.float32), 'vote_cloud')  # 采样点
+        #         #
+        #         self.pub.publish_boxes(gt_bboxes.detach().cpu().numpy(), 'gt')  # GT
+        #         # self.pub.publish_boxes(pred_bboxes, 'pred', color=(1.0, 1.0, 0.0, 0.2))  # 预测结果
 
         return batch_dict
+        #输出里面包含各种数据

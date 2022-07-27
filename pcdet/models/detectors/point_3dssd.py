@@ -4,30 +4,69 @@ from .detector3d_template import Detector3DTemplate
 from ...ops.iou3d_nms import iou3d_nms_utils
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 
+# ros2 rviz
+from tools.visualize_ros2 import PointCloudPublisher
+import numpy as np
 
 class Point3DSSD(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
         self.module_list = self.build_networks()
+        # ros vis
+        self.pub = PointCloudPublisher("sasa_pub1",interval=1)
 
     def forward(self, batch_dict):
         for cur_module in self.module_list:
-            batch_dict = cur_module(batch_dict)
+            batch_dict = cur_module(batch_dict) # forward的输出 pcdet/models/dense_heads/point_head_vote.py
+        # # 可视化batch_dict里的数据
+        # 可视化batch_dict里的数据
+        self.pub.update_counter()
+        if self.pub.is_ok() and self.training:
+            with torch.no_grad():
+                print("发布topic==================================================")
+                points = batch_dict['points'][:, 1:4]
+                points = points.detach().cpu().numpy()
+                # points= np.transpose(points, (0, 2, 1))
+                # points= points[:, [2, 0, 1]]
 
+                vote_reg_preds = batch_dict['point_vote_coords'][:,1:]
+                vote_candidate_preds = batch_dict['point_candidate_coords'][:,1:]
+                # boxes visualization
+                # print("torch.squeeze(batch_dict['gt_boxes'])", torch.squeeze(batch_dict['gt_boxes']))
+                gt_bboxes = torch.squeeze(batch_dict['gt_boxes']).reshape(-1, 8)[:,[7,0,1,2,3,4,5,6]] # (1,6,8) # reshape防止1行报错
+                # 预测结果
+                # pred_bboxes = ret_dict['batch_box_preds']  # (256,7)
+                # pred_cls = batch_dict['point_cls_labels']  # (256,1)
+                sa_pred_dicts, sa_recall_dicts = self.post_processing(batch_dict) # 输出是个list
+                pred_boxes = sa_pred_dicts[0]['pred_boxes'] # (49, 7)
+                pred_labels = sa_pred_dicts[0]['pred_labels'].reshape(-1, 1) # (49,)
+                pred = torch.cat([pred_labels, pred_boxes], dim=1)
+                # self.pub.publish(vote_reg_points, topic='anyway')
+                # print("frame_id:", batch_dict['frame_id'])
+                if '000008' in batch_dict['frame_id']:
+                    # print("frame_id内部:", batch_dict['frame_id'])
+                    self.pub.publish(points, 'raw_cloud')  #
+                    self.pub.publish(vote_reg_preds.detach().cpu().numpy(), 'vote_cloud')  # 采样点
+                    self.pub.publish(vote_candidate_preds.detach().cpu().numpy(), 'candidate_cloud')  # offset
+                    #
+                    self.pub.publish_boxes(gt_bboxes.detach().cpu().numpy(), 'gt')  # GT
+                    self.pub.publish_boxes(pred.detach().cpu().numpy(), 'pred', color=(1.0, 1.0, 0.0, 0.2))  # 预测结果
+
+        # print("============================SASA模型完毕================================")
         if self.training:
-            loss, tb_dict, disp_dict = self.get_training_loss()
+            loss, tb_dict, disp_dict = self.get_training_loss() # 调用下面函数
 
             ret_dict = {
                 'loss': loss
             }
             return ret_dict, tb_dict, disp_dict
         else:
-            pred_dicts, recall_dicts = self.post_processing(batch_dict)
+            pred_dicts, recall_dicts = self.post_processing(batch_dict) # 后处理！！！！！！！！！！！
             return pred_dicts, recall_dicts
 
     def get_training_loss(self):
         disp_dict = {}
-        loss_point, tb_dict = self.point_head.get_loss()
+        loss_point, tb_dict = self.point_head.get_loss() # pcdet/models/dense_heads/point_head_vote.py
 
         loss = loss_point
         return loss, tb_dict, disp_dict

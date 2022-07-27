@@ -4,7 +4,7 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2021-05-02 23:48:58
-LastEditTime: 2021-09-05 23:46:20
+LastEditTime: 2022-07-26 10:22:21
 FilePath: /PCDet/tools/demo.py
 '''
 import argparse
@@ -22,6 +22,9 @@ from pcdet.datasets import DatasetTemplate # 数据模板
 from pcdet.models import build_network, load_data_to_gpu
 from pcdet.utils import common_utils
 from visual_utils import visualize_utils as V # 可视化函数库
+
+# ros2
+import rclpy
 
 # 加载数据(from: pcdet/datasets/dataset.py)
 class DemoDataset(DatasetTemplate):
@@ -100,6 +103,12 @@ def main():
     model.cuda()
     model.eval() # 测试
 
+    # pkl_path = "/home/chongqinghuang/code/PCDet/data/kitti/kitti_infos_train.pkl"
+    # import pickle
+    # with open(pkl_path, 'rb') as f:
+    #     infos = pickle.load(f)
+    # infos[7]['annos']['gt_boxes_lidar']
+    # print(infos[8]['annos']['gt_boxes_lidar'])
     # torch.no_grad( ) 的目的是使得其中的数据不需要计算梯度，也不会进行反向传播
     with torch.no_grad():
         # 多少个bin文件，就遍历几次
@@ -121,5 +130,8 @@ def main():
 
 
 if __name__ == '__main__':
+    rclpy.init() # 添加
     main()
+    rclpy.shutdown()
+
 

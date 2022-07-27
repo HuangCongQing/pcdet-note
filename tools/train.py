@@ -12,6 +12,9 @@ from tensorboardX import SummaryWriter
 # cuDNN error: CUDNN_STATUS_EXECUTION_FAILED 解决方案?????
 torch.backends.cudnn.enabled = False
 
+# ros2
+import rclpy
+
 
 # 配置gpu
 # os.environ["CUDA_VISIBLE_DEVICES"] =  "5,6,7"
@@ -205,4 +208,6 @@ def main():
 
 
 if __name__ == '__main__':
+    rclpy.init() # 添加
     main()
+    rclpy.shutdown()

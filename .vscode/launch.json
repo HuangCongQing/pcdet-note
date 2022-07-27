@@ -5,15 +5,16 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: 当前文件",
+            "name": "Python: PCDET",
             "type": "python",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/tools",  // 调试路径
             "args": [ // 参数
-                "--cfg_file","cfgs/kitti_models/pointpillar.yaml",  //pointpillar调试
+                "--cfg_file","cfgs/kitti_models/3dssd_sasa.yaml",  //
                 // "--cfg_file","cfgs/kitti_models/pv_rcnn.yaml",  //pv_rcnn调试
+                // "--cfg_file","cfgs/kitti_models/pointpillar.yaml",  //pointpillar调试
                 "--batch_size", "1",
                 "--epochs", "100"
             ]

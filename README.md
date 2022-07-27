@@ -24,6 +24,11 @@ tensorrt部署参考：
 * https://github.com/hova88/PointPillars_MultiHead_40FPS
 
 ### 
+Install `pcdet` toolbox.
+```shell
+pip install -r requirements.txt
+python setup.py develop
+```
 
 
 ```
