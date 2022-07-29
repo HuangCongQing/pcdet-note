@@ -34,13 +34,14 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
             tb_log.add_scalar('meta_data/learning_rate', cur_lr, accumulated_iter) # tensorboard显示
 
         model.train() #一个固定语句
-        optimizer.zero_grad()  # 梯度清零
+        optimizer.zero_grad()  # step1 梯度清零
 
-        loss, tb_dict, disp_dict = model_func(model, batch) # 求loss
+        # 函数定义：def model_func()  ->> pcdet/models/__init__.py
+        loss, tb_dict, disp_dict = model_func(model, batch) # 求loss   loss 最终来源： loss_point, tb_dict, disp_dict = self.point_head.get_loss()  pcdet/models/detectors/point_3dssd.py
 
-        loss.backward() # loss反向传播===============================================================================
+        loss.backward() # step2 loss反向传播===============================================================================
         clip_grad_norm_(model.parameters(), optim_cfg.GRAD_NORM_CLIP) # 梯度裁剪
-        optimizer.step() # 更新
+        optimizer.step() # step3 更新
 
         accumulated_iter += 1 # tensorboard 横坐标？
         disp_dict.update({'loss': loss.item(), 'lr': cur_lr})

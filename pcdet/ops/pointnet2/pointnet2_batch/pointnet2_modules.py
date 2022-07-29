@@ -31,7 +31,7 @@ class _PointnetSAModuleBase(nn.Module):
         if new_xyz is None:
             new_xyz = pointnet2_utils.gather_operation(
                 xyz_flipped,
-                pointnet2_utils.furthest_point_sample(xyz, self.npoint)
+                pointnet2_utils.furthest_point_sample(xyz, self.npoint) # PFS最远点采样
             ).transpose(1, 2).contiguous() if self.npoint is not None else None
         
         # 修改
@@ -126,16 +126,16 @@ class PointnetSAModule(PointnetSAModuleMSG):
             pool_method=pool_method
         )
 
-# 3dssd
+# 3dssd Base  ( ['d-fps'], ['s-fps', 'd-fps'], ['s-fps', 'd-fps']参数中的一个)
 class _PointnetSAModuleFSBase(nn.Module):
 
     def __init__(self):
         super().__init__()
         self.groupers = None
         self.mlps = None
-        self.npoint_list = []
-        self.sample_range_list = [[0, -1]]
-        self.sample_method_list = ['d-fps']
+        self.npoint_list = [] # NPOINT_LIST: [[4096], [512, 512], [256, 256]]
+        self.sample_range_list = [[0, -1]] # SAMPLE_RANGE_LIST: [[[0, 16384]], [[0, 4096], [0, 4096]], [[0, 512], [512, 1024]]]
+        self.sample_method_list = ['d-fps'] # 方法列表 # [['d-fps'], ['s-fps', 'd-fps'], ['s-fps', 'd-fps']]
         self.radii = []
 
         self.pool_method = 'max_pool'
@@ -161,42 +161,59 @@ class _PointnetSAModuleFSBase(nn.Module):
             new_features: (B, npoint, \sum_k(mlps[k][-1])) tensor of the new_features descriptors
         """
         new_features_list = []
+        sample_sfps = None # 初始化
 
-        xyz_flipped = xyz.transpose(1, 2).contiguous()
+        xyz_flipped = xyz.transpose(1, 2).contiguous() # 
         if new_xyz is None:
             assert len(self.npoint_list) == len(self.sample_range_list) == len(self.sample_method_list)
             sample_idx_list = []
+            # 遍历方法列表参数中的一个 ： ['d-fps'], ['s-fps', 'd-fps'], ['s-fps', 'd-fps']参数中的一个
             for i in range(len(self.sample_method_list)):
-                xyz_slice = xyz[:, self.sample_range_list[i][0]:self.sample_range_list[i][1], :].contiguous()
+                #  SAMPLE_RANGE_LIST: [[[0, 16384]], [[0, 4096], [0, 4096]], [[0, 512], [512, 1024]]]
+                xyz_slice = xyz[:, self.sample_range_list[i][0]:self.sample_range_list[i][1], :].contiguous() #
+                # print(xyz_slice.shape) #(1,16384,3),[(1,4096,3),(1,4096,3)],[(1,512,3),(1,512,3)]
                 if self.sample_method_list[i] == 'd-fps':
-                    sample_idx = pointnet2_utils.furthest_point_sample(xyz_slice, self.npoint_list[i])
+                    sample_idx = pointnet2_utils.furthest_point_sample(xyz_slice, self.npoint_list[i]) # NPOINT_LIST: [[4096], [512, 512], [256, 256]]
                 elif self.sample_method_list[i] == 'f-fps':
-                    features_slice = features[:, :, self.sample_range_list[i][0]:self.sample_range_list[i][1]]
+                    features_slice = features[:, :, self.sample_range_list[i][0]:self.sample_range_list[i][1]] # 得到范围
                     dist_matrix = pointnet2_utils.calc_dist_matrix_for_sampling(xyz_slice,
                                                                                 features_slice.permute(0, 2, 1),
                                                                                 self.weight_gamma)
-                    sample_idx = pointnet2_utils.furthest_point_sample_matrix(dist_matrix, self.npoint_list[i])
-                # ============================================s-fps实现？？？？？？？？？？？？？？？？？？？？？？？？、
+                    sample_idx = pointnet2_utils.furthest_point_sample_matrix(dist_matrix, self.npoint_list[i]) # 得到采样下标
+                # ============================================s-fps实现
                 elif self.sample_method_list[i] == 's-fps':
                     assert scores is not None
                     scores_slice = \
                         scores[:, self.sample_range_list[i][0]:self.sample_range_list[i][1]].contiguous()
-                    scores_slice = scores_slice.sigmoid() ** self.weight_gamma
-                    sample_idx = pointnet2_utils.furthest_point_sample_weights(
-                        xyz_slice,
-                        scores_slice,
-                        self.npoint_list[i]
+                    scores_slice = scores_slice.sigmoid() ** self.weight_gamma # 权重(1, 4096),(1, 512)
+                    sample_idx = pointnet2_utils.furthest_point_sample_weights( # (1, 512)(1, 256),pcdet/ops/pointnet2/pointnet2_batch/pointnet2_utils.py
+                        xyz_slice,   # (1, 4096,3),(1, 512,3)
+                        scores_slice, # (1, 4096),(1, 512)
+                        self.npoint_list[i] # NPOINT_LIST: [[4096], [512, 512], [256, 256]]
                     )
+                    # add vis sfps
+                    sample_sfps = torch.cat([xyz_slice.reshape(-1, 3), scores_slice.reshape(-1,1)],dim=-1 ) # torch.Size([4096, 4])
+                    # print(sample_idx.shape)
                 else:
                     raise NotImplementedError
 
-                sample_idx_list.append(sample_idx + self.sample_range_list[i][0])
+                sample_idx_list.append(sample_idx + self.sample_range_list[i][0]) # 得到下标列表    SAMPLE_RANGE_LIST: [[[0, 16384]], [[0, 4096], [0, 4096]], [[0, 512], [512, 1024]]]
+                # print(sample_idx_list) # 一共输出3次  第一次：list[1:tensor(1,4096)]到下面  第二次：list[2:tensor(1,512)+tensor(1,512)] 第三次：list[2:tensor(1,256)+tensor(1,256)]
+            # for  end
 
-            sample_idx = torch.cat(sample_idx_list, dim=-1)
+            sample_idx = torch.cat(sample_idx_list, dim=-1) # list 一共3次
+            # 第一次：list[1:tensor(1,4096)]
+            # 第二次：(1,1024) = list[2:tensor(1,512)+tensor(1,512)]
+            # 第三次：(1,512) = list[2:tensor(1,256)+tensor(1,256)]
+
+            # 根据下标得到新的xyz点云
             new_xyz = pointnet2_utils.gather_operation(
                 xyz_flipped,
                 sample_idx
-            ).transpose(1, 2).contiguous()  # (B, npoint, 3)
+            ).transpose(1, 2).contiguous()  # (B, npoint, 3) #
+            # 第一次：(1,4096,3)
+            # 第二次：(1,1024,3)
+            # 第三次：(1,512,3)
             
             if self.skip_connection: 
                 old_features = pointnet2_utils.gather_operation(
@@ -204,6 +221,7 @@ class _PointnetSAModuleFSBase(nn.Module):
                     sample_idx
                 ) if features is not None else None  # (B, C, npoint)
 
+        # 3 次
         for i in range(len(self.groupers)):
             idx_cnt, new_features = self.groupers[i](xyz, new_xyz, features)  # (B, C, npoint, nsample)
             new_features = self.mlps[i](new_features)  # (B, mlp[-1], npoint, nsample)
@@ -224,6 +242,7 @@ class _PointnetSAModuleFSBase(nn.Module):
             
             new_features_list.append(pooled_features.squeeze(-1))  # (B, mlp[-1], npoint)
 
+        # False
         if self.skip_connection and old_features is not None:
             new_features_list.append(old_features)
 
@@ -234,18 +253,20 @@ class _PointnetSAModuleFSBase(nn.Module):
         if self.confidence_mlp is not None:
             new_scores = self.confidence_mlp(new_features)
             new_scores = new_scores.squeeze(1)  # (B, npoint)
-            return new_xyz, new_features, new_scores
+            return new_xyz, new_features, new_scores, sample_sfps  # 在这返回 返回值=============================================================================
 
-        return new_xyz, new_features, None
+        return new_xyz, new_features, None, sample_sfps # (1,512,3), (1,256,512)
 
-
+# 被调用pcdet/models/dense_heads/point_head_vote.py
+# SAMPLE_METHOD_LIST: [['d-fps'], ['s-fps', 'd-fps'], ['s-fps', 'd-fps']]
+# 流程：  (0): PointnetSAModuleFSMSG(   groupers， mlps，aggregation_mlp，confidence_mlp
 class PointnetSAModuleFSMSG(_PointnetSAModuleFSBase):
     """Pointnet set abstraction layer with fusion sampling and multiscale grouping"""
 
     def __init__(self, *,
                  npoint_list: List[int] = None,
                  sample_range_list: List[List[int]] = None,
-                 sample_method_list: List[str] = None,
+                 sample_method_list: List[str] = None, # 方法列表
                  radii: List[float],
                  nsamples: List[int],
                  mlps: List[List[int]],
@@ -282,8 +303,8 @@ class PointnetSAModuleFSMSG(_PointnetSAModuleFSBase):
         self.sample_range_list = sample_range_list
         self.sample_method_list = sample_method_list
         self.radii = radii
-        self.groupers = nn.ModuleList()
-        self.mlps = nn.ModuleList()
+        self.groupers = nn.ModuleList() # step1 =======
+        self.mlps = nn.ModuleList() # step2 =========
 
         former_radius = 0.0
         in_channels, out_channels = 0, 0
@@ -292,7 +313,7 @@ class PointnetSAModuleFSMSG(_PointnetSAModuleFSBase):
             nsample = nsamples[i]
             if dilated_radius_group:
                 self.groupers.append(
-                    pointnet2_utils.QueryAndGroupDilated(former_radius, radius, nsample, use_xyz=use_xyz)
+                    pointnet2_utils.QueryAndGroupDilated(former_radius, radius, nsample, use_xyz=use_xyz) # 
                 )
             else:
                 self.groupers.append(
@@ -322,6 +343,7 @@ class PointnetSAModuleFSMSG(_PointnetSAModuleFSBase):
         if skip_connection:
             out_channels += in_channels
 
+        # step3
         if aggregation_mlp is not None:
             shared_mlp = []
             for k in range(len(aggregation_mlp)):
@@ -335,6 +357,7 @@ class PointnetSAModuleFSMSG(_PointnetSAModuleFSBase):
         else:
             self.aggregation_mlp = None
 
+        # step4
         if confidence_mlp is not None:
             shared_mlp = []
             for k in range(len(confidence_mlp)):
@@ -351,7 +374,7 @@ class PointnetSAModuleFSMSG(_PointnetSAModuleFSBase):
         else:
             self.confidence_mlp = None
 
-# 
+# Base 上面class    pcdet/models/dense_heads/point_head_vote.py
 class PointnetSAModuleFS(PointnetSAModuleFSMSG):
     """Pointnet set abstraction layer with fusion sampling"""
 
@@ -394,8 +417,9 @@ class PointnetSAModuleFS(PointnetSAModuleFSMSG):
             aggregation_mlp=aggregation_mlp, confidence_mlp=confidence_mlp
         )
 
+# 最简单的FPS？？？
 class PointnetFPModule(nn.Module):
-    r"""Propigates the features of one set to another"""
+    r"""Propigates the features of one set to another将一个集合的特征传递给另一个集合"""
 
     def __init__(self, *, mlp: List[int], bn: bool = True):
         """

@@ -124,7 +124,9 @@ def main():
         merge_all_iters_to_one_epoch=args.merge_all_iters_to_one_epoch,
         total_epochs=args.epochs
     )
-    # 模型build_network   调用的这些包就是pcdet/models/detectors下的某个py文件，# class PointPillar(Detector3DTemplate): # class PVRCNN(Detector3DTemplate):
+    # 模型build_network   
+    # 调用的这些包就是pcdet/models/detectors下的某个py文件，# class PointPillar(Detector3DTemplate): # class PVRCNN(Detector3DTemplate):
+    # 比如pcdet/models/detectors/point_3dssd.py-》》class Point3DSSD(Detector3DTemplate):
     model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=train_set) # # model_cfg.NAME:   'PVRCNN'      class PVRCNN(Detector3DTemplate):
     if args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
@@ -159,11 +161,11 @@ def main():
         optimizer, total_iters_each_epoch=len(train_loader), total_epochs=args.epochs,
         last_epoch=last_epoch, optim_cfg=cfg.OPTIMIZATION
     )
-    # 上面都是初始化参数
+    # 上面都是初始化参数配置
     # -----------------------start training---------------------------
     logger.info('**********************【train.py】Start training %s/%s(%s)**********************'
                 % (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
-    train_model( # train_model定位在头文件中的tools/train_utils/train_utils.py
+    train_model( # train_model定位在头文件中的tools/train_utils/train_utils.py-->def train_one_epoch
         model,  # 模型
         optimizer,
         train_loader,  # 数据

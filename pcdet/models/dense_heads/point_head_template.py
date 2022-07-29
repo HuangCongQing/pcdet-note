@@ -136,6 +136,7 @@ class PointHeadTemplate(nn.Module):
         }
         return targets_dict
 
+    # 分类
     def get_cls_layer_loss(self, tb_dict=None):
         point_cls_labels = self.forward_ret_dict['point_cls_labels'].view(-1)
         point_cls_preds = self.forward_ret_dict['point_cls_preds'].view(-1, self.num_class)
@@ -176,11 +177,12 @@ class PointHeadTemplate(nn.Module):
             tb_dict = {}
         tb_dict.update({'point_loss_part': point_loss_part.item()})
         return point_loss_part, tb_dict
-
+    
+    # 回归框
     def get_box_layer_loss(self, tb_dict=None):
         pos_mask = self.forward_ret_dict['point_cls_labels'] > 0
-        point_box_labels = self.forward_ret_dict['point_box_labels']
-        point_box_preds = self.forward_ret_dict['point_box_preds']
+        point_box_labels = self.forward_ret_dict['point_box_labels'] # GT框
+        point_box_preds = self.forward_ret_dict['point_box_preds'] # 预测框
 
         reg_weights = pos_mask.float()
         pos_normalizer = pos_mask.sum().float()
@@ -191,13 +193,14 @@ class PointHeadTemplate(nn.Module):
         )
         point_loss_box = point_loss_box_src.sum()
 
-        loss_weights_dict = self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS
+        loss_weights_dict = self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS # 权重
         point_loss_box = point_loss_box * loss_weights_dict['point_box_weight']
         if tb_dict is None:
             tb_dict = {}
         tb_dict.update({'point_loss_box': point_loss_box.item()})
         return point_loss_box, tb_dict
 
+    # 生成预测狂
     def generate_predicted_boxes(self, points, point_cls_preds, point_box_preds):
         """
         Args:
@@ -210,7 +213,7 @@ class PointHeadTemplate(nn.Module):
 
         """
         _, pred_classes = point_cls_preds.max(dim=-1)
-        point_box_preds = self.box_coder.decode_torch(point_box_preds, points, pred_classes + 1)
+        point_box_preds = self.box_coder.decode_torch(point_box_preds, points, pred_classes + 1) # 解码 pcdet/utils/box_coder_utils.py
 
         return point_cls_preds, point_box_preds
 

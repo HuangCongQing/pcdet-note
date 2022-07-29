@@ -219,6 +219,7 @@ class PointResidualCoder(object):
         cts = [g for g in cgs]
         return torch.cat([xt, yt, zt, dxt, dyt, dzt, torch.cos(rg), torch.sin(rg), *cts], dim=-1)
 
+    # anchor_free解码
     def decode_torch(self, box_encodings, points, pred_classes=None):
         """
         Args:
@@ -255,8 +256,7 @@ class PointResidualCoder(object):
         return torch.cat([xg, yg, zg, dxg, dyg, dzg, rg, *cgs], dim=-1)
 
 
-# 3dssd
-
+# 3dssd用的这个编码解码   在yaml有参数配置
 class PointBinResidualCoder(object):
     def __init__(self, code_size=30, use_mean_size=True, angle_bin_num=12, pred_velo=False, **kwargs):
         super().__init__()
@@ -306,7 +306,7 @@ class PointBinResidualCoder(object):
         angle_res = (angle_cls_onehot * angle_res).sum(dim=-1)
         angle = (angle_cls_idx.float() + angle_res) * (np.pi * 2.0 / float(self.angle_bin_num))
         return angle
-
+    # 编码
     def encode_torch(self, gt_boxes, points, gt_classes=None):
         """
         Args:
@@ -381,19 +381,20 @@ class PointBinResidualCoder(object):
         rg = self.decode_angle_torch(box_angle_cls, box_angle_reg).unsqueeze(-1)
         return torch.cat([xg, yg, zg, dxg, dyg, dzg, rg], dim=-1)
 
+    # anchor_free解码  实际输入: box_encodings(256,30) 输入角度是cos, sin
     def decode_torch(self, box_encodings, points, pred_classes=None):
         """
         Args:
-            box_encodings: (N, 8 + C) [x, y, z, dx, dy, dz, cos, sin, ...]
+            box_encodings: (N, 8 + C) [x, y, z, dx, dy, dz, cos, sin, ...]  实际输入: box_encodings(256,30)
             points: [x, y, z]
             pred_classes: (N) [1, num_classes]
         Returns:
             boxes3d: (N, 7)
         """
-        box_offsets = box_encodings[:, :6]
-        box_angle_cls = box_encodings[:, 6:6 + self.angle_bin_num]
+        box_offsets = box_encodings[:, :6] # 偏移x, y, z, dx, dy, dz
+        box_angle_cls = box_encodings[:, 6:6 + self.angle_bin_num] # 角度
         box_angle_reg = box_encodings[:, 6 + self.angle_bin_num:6 + self.angle_bin_num * 2]
         cgs = box_encodings[:, 6 + self.angle_bin_num * 2:]
 
-        boxes3d = self.decode_torch_kernel(box_offsets, box_angle_cls, box_angle_reg, points, pred_classes)
+        boxes3d = self.decode_torch_kernel(box_offsets, box_angle_cls, box_angle_reg, points, pred_classes) # 解码decode_torch_kernel
         return torch.cat([boxes3d, cgs], dim=-1)

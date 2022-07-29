@@ -69,6 +69,6 @@ int furthest_point_sampling_weights_wrapper(int b, int n, int m,
     float *temp = temp_tensor.data<float>();
     int *idx = idx_tensor.data<int>();
 
-    furthest_point_sampling_weights_kernel_launcher(b, n, m, xyz, weights, temp, idx);
+    furthest_point_sampling_weights_kernel_launcher(b, n, m, xyz, weights, temp, idx); // pcdet/ops/pointnet2/pointnet2_batch/src/sampling_gpu.cu
     return 1;
 }

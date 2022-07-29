@@ -269,7 +269,7 @@ class WeightedBinaryCrossEntropyLoss(nn.Module):
 
 
 
-
+# SASA loss计算
 class PointSASALoss(nn.Module):
     """
     Layer-wise point segmentation loss, used for SASA.

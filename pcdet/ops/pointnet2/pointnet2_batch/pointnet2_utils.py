@@ -36,7 +36,7 @@ def furthest_point_sample(xyz: torch.Tensor, npoint: int) -> torch.Tensor:
     output = torch.cuda.IntTensor(B, npoint)
     temp = torch.cuda.FloatTensor(B, N).fill_(1e10)
 
-    pointnet2.furthest_point_sampling_wrapper(B, N, npoint, xyz, temp, output)
+    pointnet2.furthest_point_sampling_wrapper(B, N, npoint, xyz, temp, output) # 最远点采样
     return output
 
 
@@ -79,7 +79,7 @@ def furthest_point_sample_weights(xyz: torch.Tensor, weights: torch.Tensor, npoi
     output = torch.cuda.IntTensor(B, npoint)
     temp = torch.cuda.FloatTensor(B, N).fill_(1e10)
 
-    pointnet2.furthest_point_sampling_weights_wrapper(B, N, npoint, xyz, weights, temp, output)
+    pointnet2.furthest_point_sampling_weights_wrapper(B, N, npoint, xyz, weights, temp, output) # pcdet/ops/pointnet2/pointnet2_batch/src/sampling.cpp--->.cu
     return output
 
 

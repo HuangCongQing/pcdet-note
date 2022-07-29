@@ -126,8 +126,18 @@ class PointCloudPublisher(Node):
         self.pubs_dict['test'] = self.create_publisher(MarkerArray, 'test', 10)
         # sasa add
         self.pubs_dict['sa_raw_cloud'] = self.create_publisher(PointCloud2, 'sa_raw_cloud', 10) # 256采样点
-        self.pubs_dict['candidate_cloud'] = self.create_publisher(PointCloud2, 'candidate_cloud', 10)
-        self.pubs_dict['vote_cloud'] = self.create_publisher(PointCloud2, 'vote_cloud', 10) # 256采样点
+        self.pubs_dict['sa_candidate_cloud'] = self.create_publisher(PointCloud2, 'sa_candidate_cloud', 10)
+        self.pubs_dict['sa_vote_cloud'] = self.create_publisher(PointCloud2, 'sa_vote_cloud', 10) # 256采样点
+        self.pubs_dict['sa_first_sample_cloud'] = self.create_publisher(PointCloud2, 'sa_first_sample_cloud', 10) # 
+        self.pubs_dict['sa_second_sample_cloud'] = self.create_publisher(PointCloud2, 'sa_second_sample_cloud', 10) # 
+        self.pubs_dict['sa_second_sample_cloud_sfps'] = self.create_publisher(PointCloud2, 'sa_second_sample_cloud_sfps', 10) # 
+        self.pubs_dict['sa_second_sample_cloud_dfps'] = self.create_publisher(PointCloud2, 'sa_second_sample_cloud_dfps', 10) # 
+        self.pubs_dict['sa_third_sample_cloud'] = self.create_publisher(PointCloud2, 'sa_third_sample_cloud', 10) # sfps
+        self.pubs_dict['sa_third_sample_cloud_sfps'] = self.create_publisher(PointCloud2, 'sa_third_sample_cloud_sfps', 10) # sfps
+        self.pubs_dict['sa_third_sample_cloud_dfps'] = self.create_publisher(PointCloud2, 'sa_third_sample_cloud_dfps', 10) # sfps
+        self.pubs_dict['sa_sample_cloud'] = self.create_publisher(PointCloud2, 'sa_sample_cloud', 10) # sfps
+        self.pubs_dict['sa_sample_cloud'] = self.create_publisher(PointCloud2, 'sa_sample_cloud', 10) # sfps
+        # 
         self.pubs_dict['sa_gt'] = self.create_publisher(MarkerArray, "sa_gt", 10)
         self.pubs_dict['sa_pred'] = self.create_publisher(MarkerArray, "sa_pred", 10)
 

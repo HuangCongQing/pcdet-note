@@ -6,15 +6,16 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /PointCloud2 raw1/Status1
+        - /2sample__sfps1
+        - /2sample__sfps1/Status1
+        - /3sample__sfps1/Status1
+        - /3sample__sfps1/Topic1
         - /MarkerArray gt1
         - /MarkerArray gt1/Status1
         - /MarkerArray gt1/Topic1
         - /MarkerArray pred1
         - /MarkerArray pred1/Topic1
-        - /vote_cloud1
-        - /candidate_cloud1
-      Splitter Ratio: 0.5
+      Splitter Ratio: 0.5127906799316406
     Tree Height: 1147
   - Class: rviz_common/Selection
     Name: Selection
@@ -86,7 +87,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /raw_cloud
+        Value: /sa_raw_cloud
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
@@ -99,7 +100,73 @@ Visualization Manager:
       Axis: Z
       Channel Name: intensity
       Class: rviz_default_plugins/PointCloud2
-      Color: 239; 41; 41
+      Color: 252; 175; 62
+      Color Transformer: Intensity
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 196; 160; 0
+      Max Intensity: 0.9999908208847046
+      Min Color: 255; 255; 0
+      Min Intensity: 5.397740587831379e-10
+      Name: 2sample__sfps
+      Position Transformer: XYZ
+      Selectable: true
+      Size (Pixels): 6
+      Size (m): 7
+      Style: Points
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /sa_second_sample_cloud_sfps
+      Use Fixed Frame: true
+      Use rainbow: false
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 196; 160; 0
+      Color Transformer: FlatColor
+      Decay Time: 0
+      Enabled: false
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 0.9612423181533813
+      Min Color: 0; 0; 0
+      Min Intensity: 0.000950835004914552
+      Name: 3sample__sfps
+      Position Transformer: XYZ
+      Selectable: true
+      Size (Pixels): 6
+      Size (m): 7
+      Style: Points
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /sa_third_sample_cloud_sfps
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: false
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 138; 226; 52
       Color Transformer: FlatColor
       Decay Time: 0
       Enabled: true
@@ -108,44 +175,20 @@ Visualization Manager:
       Max Intensity: 4096
       Min Color: 0; 0; 0
       Min Intensity: 0
-      Name: PointCloud2 final_cloud
+      Name: candidate_cloud
       Position Transformer: XYZ
       Selectable: true
-      Size (Pixels): 15
-      Size (m): 0.009999999776482582
+      Size (Pixels): 10
+      Size (m): 1
       Style: Points
       Topic:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /final_cloud
+        Value: /sa_candidate_cloud
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
-    - Class: rviz_default_plugins/MarkerArray
-      Enabled: true
-      Name: MarkerArray gt
-      Namespaces:
-        "": true
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: gt
-      Value: true
-    - Class: rviz_default_plugins/MarkerArray
-      Enabled: true
-      Name: MarkerArray pred
-      Namespaces:
-        "": true
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: pred
       Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
@@ -168,7 +211,7 @@ Visualization Manager:
       Name: vote_cloud
       Position Transformer: XYZ
       Selectable: true
-      Size (Pixels): 8
+      Size (Pixels): 10
       Size (m): 0.009999999776482582
       Style: Points
       Topic:
@@ -176,42 +219,33 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /vote_cloud
+        Value: /sa_vote_cloud
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
-    - Alpha: 1
-      Autocompute Intensity Bounds: true
-      Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
-      Axis: Z
-      Channel Name: intensity
-      Class: rviz_default_plugins/PointCloud2
-      Color: 138; 226; 52
-      Color Transformer: FlatColor
-      Decay Time: 0
+    - Class: rviz_default_plugins/MarkerArray
       Enabled: true
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Max Intensity: 4096
-      Min Color: 0; 0; 0
-      Min Intensity: 0
-      Name: candidate_cloud
-      Position Transformer: XYZ
-      Selectable: true
-      Size (Pixels): 8
-      Size (m): 1
-      Style: Points
+      Name: MarkerArray gt
+      Namespaces:
+        {}
       Topic:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /candidate_cloud
-      Use Fixed Frame: true
-      Use rainbow: true
+        Value: sa_gt
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: MarkerArray pred
+      Namespaces:
+        {}
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: sa_pred
       Value: true
   Enabled: true
   Global Options:
@@ -256,25 +290,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 34.27912521362305
+      Distance: 40.763031005859375
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 17.84956169128418
-        Y: 6.636001110076904
-        Z: 2.6058430671691895
+        X: 22.997821807861328
+        Y: -3.60878586769104
+        Z: -1.1529231071472168
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5197969675064087
+      Pitch: 0.43479692935943604
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.685402870178223
+      Yaw: 3.6803998947143555
     Saved: ~
 Window Geometry:
   Displays:

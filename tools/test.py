@@ -19,6 +19,10 @@ from pcdet.datasets import build_dataloader
 from pcdet.models import build_network
 from pcdet.utils import common_utils
 
+# ros2
+import rclpy
+
+
 
 def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
@@ -199,4 +203,6 @@ def main():
 
 
 if __name__ == '__main__':
+    rclpy.init() # 添加
     main()
+    rclpy.shutdown()

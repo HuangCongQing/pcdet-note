@@ -4,7 +4,7 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2021-05-02 23:48:58
-LastEditTime: 2022-07-26 14:20:24
+LastEditTime: 2022-07-29 17:19:21
 FilePath: /PCDet/pcdet/models/__init__.py
 '''
 from collections import namedtuple
@@ -34,6 +34,7 @@ def load_data_to_gpu(batch_dict):
 def model_fn_decorator():
     ModelReturn = namedtuple('ModelReturn', ['loss', 'tb_dict', 'disp_dict'])
 
+    # 被调用  train1个epoch过程中 tools/train_utils/train_utils.py
     def model_func(model, batch_dict):
         load_data_to_gpu(batch_dict)
         ret_dict, tb_dict, disp_dict = model(batch_dict) # 得到返回loss, tb_dict, disp_dict==============================================================
