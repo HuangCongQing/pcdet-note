@@ -200,6 +200,7 @@ class WaymoDataset(DatasetTemplate):
         if 'annos' not in self.infos[0].keys():
             return 'No ground-truth boxes for evaluation', {}
 
+        # kitti评测
         def kitti_eval(eval_det_annos, eval_gt_annos):
             from ..kitti.kitti_object_eval_python import eval as kitti_eval
             from ..kitti import kitti_utils
@@ -222,10 +223,12 @@ class WaymoDataset(DatasetTemplate):
             )
             return ap_result_str, ap_dict
 
+        # kitti评测
         def waymo_eval(eval_det_annos, eval_gt_annos):
             from .waymo_eval import OpenPCDetWaymoDetectionMetricsEstimator
             eval = OpenPCDetWaymoDetectionMetricsEstimator()
 
+            # pcdet/datasets/waymo/waymo_eval.py》》》》》》》》》》》》》》》》》》》》》》》》》。。
             ap_dict = eval.waymo_evaluation(
                 eval_det_annos, eval_gt_annos, class_name=class_names,
                 distance_thresh=1000, fake_gt_infos=self.dataset_cfg.get('INFO_WITH_FAKELIDAR', False)
@@ -233,7 +236,7 @@ class WaymoDataset(DatasetTemplate):
             ap_result_str = '\n'
             for key in ap_dict:
                 ap_dict[key] = ap_dict[key][0]
-                ap_result_str += '%s: %.4f \n' % (key, ap_dict[key])
+                ap_result_str += '%s: %.4f \n' % (key, ap_dict[key]) # 结果输出
 
             return ap_result_str, ap_dict
 

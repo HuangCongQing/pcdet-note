@@ -175,6 +175,7 @@ class OpenPCDetWaymoDetectionMetricsEstimator(tf.test.TestCase):
 
         return tuple(ret_ans)
 
+    # =========================================main
     def waymo_evaluation(self, prediction_infos, gt_infos, class_name, distance_thresh=100, fake_gt_infos=True):
         print('Start the waymo evaluation...')
         assert len(prediction_infos) == len(gt_infos), '%d vs %d' % (prediction_infos.__len__(), gt_infos.__len__())
@@ -235,6 +236,7 @@ def main():
         cur_info['frame_id'] = gt_infos[idx]['frame_id']
         gt_infos_dst.append(cur_info)
 
+    # 评测结果
     waymo_AP = eval.waymo_evaluation(
         pred_infos, gt_infos_dst, class_name=args.class_names, distance_thresh=1000, fake_gt_infos=True
     )
