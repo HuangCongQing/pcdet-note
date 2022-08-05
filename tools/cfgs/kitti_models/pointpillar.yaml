@@ -73,9 +73,9 @@ MODEL:
         NAME: BaseBEVBackbone # pcdet/models/backbones_2d/base_bev_backbone.py  =======================================================================
         LAYER_NUMS: [3, 5, 5]  #层数
         LAYER_STRIDES: [2, 2, 2] #层步幅
-        NUM_FILTERS: [64, 128, 256] #滤波器个数
+        NUM_FILTERS: [64, 128, 256] #滤波器个数（卷积）
         UPSAMPLE_STRIDES: [1, 2, 4] #上采样步幅
-        NUM_UPSAMPLE_FILTERS: [128, 128, 128] #上采样滤波器个数
+        NUM_UPSAMPLE_FILTERS: [128, 128, 128] #上采样滤波器个数（反卷积）
 
     # Step4
     # 密集卷积头======================

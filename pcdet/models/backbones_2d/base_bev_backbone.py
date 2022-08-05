@@ -10,23 +10,23 @@ class BaseBEVBackbone(nn.Module):
 
         if self.model_cfg.get('LAYER_NUMS', None) is not None:
             assert len(self.model_cfg.LAYER_NUMS) == len(self.model_cfg.LAYER_STRIDES) == len(self.model_cfg.NUM_FILTERS)
-            layer_nums = self.model_cfg.LAYER_NUMS
-            layer_strides = self.model_cfg.LAYER_STRIDES
-            num_filters = self.model_cfg.NUM_FILTERS
+            layer_nums = self.model_cfg.LAYER_NUMS # LAYER_NUMS: [3, 5, 5]  #层数
+            layer_strides = self.model_cfg.LAYER_STRIDES # LAYER_STRIDES: [2, 2, 2] #层步幅
+            num_filters = self.model_cfg.NUM_FILTERS # NUM_FILTERS: [64, 128, 256] #滤波器个数（卷积）
         else:
             layer_nums = layer_strides = num_filters = []
 
         if self.model_cfg.get('UPSAMPLE_STRIDES', None) is not None:
             assert len(self.model_cfg.UPSAMPLE_STRIDES) == len(self.model_cfg.NUM_UPSAMPLE_FILTERS)
-            num_upsample_filters = self.model_cfg.NUM_UPSAMPLE_FILTERS
-            upsample_strides = self.model_cfg.UPSAMPLE_STRIDES
+            num_upsample_filters = self.model_cfg.NUM_UPSAMPLE_FILTERS #  NUM_UPSAMPLE_FILTERS: [128, 128, 128] 
+            upsample_strides = self.model_cfg.UPSAMPLE_STRIDES # UPSAMPLE_STRIDES: [1, 2, 4] #上采样步幅
         else:
             upsample_strides = num_upsample_filters = []
 
         num_levels = len(layer_nums)
         c_in_list = [input_channels, *num_filters[:-1]]
-        self.blocks = nn.ModuleList()
-        self.deblocks = nn.ModuleList()
+        self.blocks = nn.ModuleList() # 卷积
+        self.deblocks = nn.ModuleList() # 反卷积
         for idx in range(num_levels):
             cur_layers = [
                 nn.ZeroPad2d(1),
@@ -43,12 +43,13 @@ class BaseBEVBackbone(nn.Module):
                     nn.BatchNorm2d(num_filters[idx], eps=1e-3, momentum=0.01),
                     nn.ReLU()
                 ])
-            self.blocks.append(nn.Sequential(*cur_layers))
+            self.blocks.append(nn.Sequential(*cur_layers)) # 
             if len(upsample_strides) > 0:
                 stride = upsample_strides[idx]
                 if stride >= 1:
                     self.deblocks.append(nn.Sequential(
                         nn.ConvTranspose2d(
+                            # NUM_FILTERS: [64, 128, 256] #滤波器个数（卷积） #  NUM_UPSAMPLE_FILTERS: [128, 128, 128] 
                             num_filters[idx], num_upsample_filters[idx],
                             upsample_strides[idx],
                             stride=upsample_strides[idx], bias=False
@@ -56,11 +57,11 @@ class BaseBEVBackbone(nn.Module):
                         nn.BatchNorm2d(num_upsample_filters[idx], eps=1e-3, momentum=0.01),
                         nn.ReLU()
                     ))
-                else:
+                else:# else不运行
                     stride = np.round(1 / stride).astype(np.int)
                     self.deblocks.append(nn.Sequential(
                         nn.Conv2d(
-                            num_filters[idx], num_upsample_filters[idx],
+                            num_filters[idx], num_upsample_filters[idx], 
                             stride,
                             stride=stride, bias=False
                         ),

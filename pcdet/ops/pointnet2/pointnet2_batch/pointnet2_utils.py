@@ -316,7 +316,7 @@ class QueryAndGroup(nn.Module):
 
         return idx_cnt, new_features
 
-
+# (1 groupers): ModuleList
 class QueryAndGroupDilated(nn.Module):
     def __init__(self, radius_in: float, radius_out: float, nsample: int, use_xyz: bool = True):
         """

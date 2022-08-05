@@ -71,8 +71,17 @@ class PointHeadVote(PointHeadTemplate):
 
         target_cfg = self.model_cfg.TARGET_CONFIG
         self.box_coder = getattr(box_coder_utils, target_cfg.BOX_CODER)(
-            **target_cfg.BOX_CODER_CONFIG
+            **target_cfg.BOX_CODER_CONFIG # 
         )
+        # TARGET_CONFIG:
+        #     VOTE_EXTRA_WIDTH: [0.1, 0.1, 0.1]
+        #     ASSIGN_METHOD: mask # 解码方式不一样   targets_dict = self.assign_stack_targets_mask    pcdet/models/dense_heads/point_head_vote.py
+        #     GT_CENTRAL_RADIUS: 10.0
+        #     BOX_CODER: PointBinResidualCoder # 编码和解码PCDet/pcdet/utils/box_coder_utils.py
+        #     BOX_CODER_CONFIG: {
+        #         'use_mean_size': False, # ？？？？？
+        #         'angle_bin_num': 12
+        #     }
         self.reg_layers = self.make_fc_layers(
             input_channels=channel_in,
             output_channels=self.box_coder.code_size, # 30
@@ -217,7 +226,7 @@ class PointHeadVote(PointHeadTemplate):
 
             # bbox
             point_reg_labels_single = point_reg_labels.new_zeros((bs_mask.sum(), 3))
-            point_reg_labels_single[box_fg_flag] = gt_box_of_fg_points[:, 0:3]
+            point_reg_labels_single[box_fg_flag] = gt_box_of_fg_points[:, 0:3] # 只要xyz？？？？
             point_reg_labels[bs_mask] = point_reg_labels_single
 
         # 得到分类和回归的GT
@@ -279,12 +288,13 @@ class PointHeadVote(PointHeadTemplate):
         assert set_ignore_flag != use_ball_constraint, 'Choose one only!'
         batch_size = gt_boxes.shape[0]
         bs_idx = points[:, 0]
+        # 初始化label
         point_cls_labels = gt_boxes.new_zeros(points.shape[0]).long()
         point_reg_labels = gt_boxes.new_zeros((points.shape[0], self.box_coder.code_size))
         point_box_labels = gt_boxes.new_zeros((points.shape[0], gt_boxes.size(2) - 1))
         for k in range(batch_size):
             bs_mask = (bs_idx == k)
-            points_single = points[bs_mask][:, 1:4]
+            points_single = points[bs_mask][:, 1:4] # 点的坐标
             point_cls_labels_single = point_cls_labels.new_zeros(bs_mask.sum())
             box_idxs_of_pts = roiaware_pool3d_utils.points_in_boxes_gpu(
                 points_single.unsqueeze(dim=0), gt_boxes[k:k + 1, :, 0:7].contiguous()
@@ -306,6 +316,7 @@ class PointHeadVote(PointHeadTemplate):
             else:
                 raise NotImplementedError
 
+            # label
             gt_box_of_fg_points = gt_boxes[k][box_idxs_of_pts[fg_flag]]
             point_cls_labels_single[fg_flag] = 1 if self.num_class == 1 else gt_box_of_fg_points[:, -1].long()
             point_cls_labels[bs_mask] = point_cls_labels_single
@@ -324,13 +335,13 @@ class PointHeadVote(PointHeadTemplate):
                 point_box_labels[bs_mask] = point_box_labels_single
 
         targets_dict = {
-            'point_cls_labels': point_cls_labels,
-            'point_reg_labels': point_reg_labels,
-            'point_box_labels': point_box_labels
+            'point_cls_labels': point_cls_labels, # (256,)
+            'point_reg_labels': point_reg_labels, # (256,30)
+            'point_box_labels': point_box_labels # (256,7)
         }
-        return targets_dict
+        return targets_dict # output======================================================================
 
-    # 包含编码
+    # 包含编码（不运行）
     def assign_stack_targets_iou(self, points, pred_boxes, gt_boxes,
                                  pos_iou_threshold=0.5, neg_iou_threshold=0.35):
         """
@@ -372,7 +383,7 @@ class PointHeadVote(PointHeadTemplate):
 
             if gt_box_of_fg_points.shape[0] > 0:
                 point_reg_labels_single = point_reg_labels.new_zeros((bs_mask.sum(), self.box_coder.code_size))
-                fg_point_box_labels = self.box_coder.encode_torch( # 编码pcdet/utils/box_coder_utils.py
+                fg_point_box_labels = self.box_coder.encode_torch( # （不运行）编码pcdet/utils/box_coder_utils.py
                     gt_boxes=gt_box_of_fg_points[:, :-1], points=points_single[fg_flag],
                     gt_classes=gt_box_of_fg_points[:, -1].long()
                 )
@@ -390,6 +401,7 @@ class PointHeadVote(PointHeadTemplate):
         }
         return targets_dict
 
+    # 输入是采样点point_vote_coords
     def assign_targets(self, input_dict):
         """
         Args:
@@ -421,7 +433,7 @@ class PointHeadVote(PointHeadTemplate):
             assert pred_boxes.shape.__len__() == 2, 'pred_boxes.shape=%s' % str(pred_boxes.shape)
             pos_iou_threshold = self.model_cfg.TARGET_CONFIG.POS_IOU_THRESHOLD
             neg_iou_threshold = self.model_cfg.TARGET_CONFIG.NEG_IOU_THRESHOLD
-            targets_dict = self.assign_stack_targets_iou( # 包含编码
+            targets_dict = self.assign_stack_targets_iou( # （不运行）包含编码
                 points=points, pred_boxes=pred_boxes, gt_boxes=gt_boxes,
                 pos_iou_threshold=pos_iou_threshold, neg_iou_threshold=neg_iou_threshold
             )
@@ -570,7 +582,7 @@ class PointHeadVote(PointHeadTemplate):
         if 'WithCenterness' in loss_cfgs.LOSS_CLS:
             point_base = self.forward_ret_dict['point_vote_coords']
             point_box_labels = self.forward_ret_dict['point_box_labels']
-            centerness_label = self.generate_centerness_label(point_base, point_box_labels, positives)
+            centerness_label = self.generate_centerness_label(point_base, point_box_labels, positives) # 生成中心点的label
             
             loss_cls_cfg = loss_cfgs.get('LOSS_CLS_CONFIG', None)
             centerness_min = loss_cls_cfg['centerness_min'] if loss_cls_cfg is not None else 0.0
@@ -789,6 +801,7 @@ class PointHeadVote(PointHeadTemplate):
         # batch_dict['point_vote_offsets'] = torch.cat(  # (N, 4)
         #     (sample_batch_idx_flatten, ret_dict['point_vote_offsets']), dim=-1)
 
+        # 针对vote 点得到对应GT
         if self.training:  # assign targets for vote loss
             extra_width = self.model_cfg.TARGET_CONFIG.get('VOTE_EXTRA_WIDTH', None)
             # GT计算得到候选点对应的GT的label和中心点坐标
@@ -797,7 +810,7 @@ class PointHeadVote(PointHeadTemplate):
                                                       extra_width=extra_width,
                                                       set_ignore_flag=False)
             ret_dict['vote_cls_labels'] = targets_dict['point_cls_labels']  # (N)
-            ret_dict['vote_reg_labels'] = targets_dict['point_reg_labels']  # (N, 3) 中心点坐标
+            ret_dict['vote_reg_labels'] = targets_dict['point_reg_labels']  # (N, 3) vote的中心点坐标
 
         _, point_features, _, _ = self.SA_module( #  PointnetSAModuleFSMSG pcdet/ops/pointnet2/pointnet2_batch/pointnet2_modules.py
             point_coords,
@@ -805,10 +818,10 @@ class PointHeadVote(PointHeadTemplate):
             new_xyz=vote_coords
         )
         
-        # 分类+回归检测头
+        # （输入是point_features）分类+回归检测头
         point_features = self.shared_fc_layer(point_features)
-        point_cls_preds = self.cls_layers(point_features) # （256，1）
-        point_reg_preds = self.reg_layers(point_features) #  回归（256， 30）？？？
+        point_cls_preds = self.cls_layers(point_features) # 分类检测头（256，1）
+        point_reg_preds = self.reg_layers(point_features) # 回归检测头（256， 30）？？？
 
         point_cls_preds = point_cls_preds.permute(0, 2, 1).contiguous()
         point_cls_preds = point_cls_preds.view(-1, point_cls_preds.shape[-1]).contiguous()
@@ -818,7 +831,7 @@ class PointHeadVote(PointHeadTemplate):
         point_cls_scores = torch.sigmoid(point_cls_preds)
         batch_dict['point_cls_scores'] = point_cls_scores # (256,1)
 
-        # bbox解码
+        # bbox解码得到(256,7)
         point_box_preds = self.box_coder.decode_torch(point_reg_preds, # # (256,30)
                                                       ret_dict['point_vote_coords']) #(256, 3) # 解码decode得到bbox??? /pcdet/utils/box_coder_utils.py
         batch_dict['point_box_preds'] = point_box_preds # (256,7)
@@ -826,9 +839,10 @@ class PointHeadVote(PointHeadTemplate):
         # 预测的结果更新，用于loss计算
         ret_dict.update({'point_cls_preds': point_cls_preds,
                          'point_reg_preds': point_reg_preds, # (256,30)
-                         'point_box_preds': point_box_preds, # (256,7) 已经解码了decode_torch bbox
+                         'point_box_preds': point_box_preds, # (256,7) 已经解码 bbox
                          'point_cls_scores': point_cls_scores})
 
+        # 针对预测结果（分类+框）得到对应GT
         if self.training:
             # 得到GT 
             targets_dict = self.assign_targets(batch_dict) # 返回GT
@@ -847,15 +861,17 @@ class PointHeadVote(PointHeadTemplate):
                     'point_sasa_preds': batch_dict['point_scores_list'],
                     'point_sasa_labels': point_sasa_labels
                 })
+            
+
             # add 可视化预测结果需要！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
             point_cls_preds, point_box_preds = self.generate_predicted_boxes(
                 points=batch_dict['point_vote_coords'][:, 1:4],
                 point_cls_preds=point_cls_preds, point_box_preds=point_reg_preds
             )
             batch_dict['batch_cls_preds'] = point_cls_preds #
-            batch_dict['batch_box_preds'] = point_box_preds # 预测结果
+            batch_dict['batch_box_preds'] = point_box_preds # 预测结果(256,7) 已经解码
             batch_dict['cls_preds_normalized'] = False
-            # end
+            # end！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
 
         # 如果不训练或者训练的时候需要预测bbox
         if not self.training or self.predict_boxes_when_training:
