@@ -60,18 +60,20 @@ MODEL:
     BACKBONE_3D:
         NAME: PointNet2FSMSG # pcdet/models/backbones_3d/pointnet2_backbone.py
         SA_CONFIG:
-            NPOINT_LIST: [[4096], [512, 512], [256, 256]]
-            SAMPLE_RANGE_LIST: [[[0, 16384]], [[0, 4096], [0, 4096]], [[0, 512], [512, 1024]]]
+            NPOINT_LIST: [[4096], [512, 512], [256, 256]] # 采样点数
+            SAMPLE_RANGE_LIST: [[[0, 16384]], [[0, 4096], [0, 4096]], [[0, 512], [512, 1024]]] # 采样范围 [0:16384]...
             # SAMPLE_METHOD_LIST: [['d-fps'], ['f-fps', 'd-fps'], ['f-fps', 'd-fps']] # f-fps修改为s-fps（基于3dssd新添加的）
             SAMPLE_METHOD_LIST: [['d-fps'], ['s-fps', 'd-fps'], ['s-fps', 'd-fps']] # pcdet/models/backbones_3d/pointnet2_backbone.py
-            RADIUS: [[0.2, 0.4, 0.8], [0.4, 0.8, 1.6], [1.6, 3.2, 4.8]]
-            NSAMPLE: [[32, 32, 64], [32, 32, 64], [32, 32, 64]]
-            # MLP
+            # groupers
+            RADIUS: [[0.2, 0.4, 0.8], [0.4, 0.8, 1.6], [1.6, 3.2, 4.8]] # 初始感受野 (1 groupers): 
+            NSAMPLE: [[32, 32, 64], [32, 32, 64], [32, 32, 64]] # 采样点数 (1 groupers): 
+            # MLP（输出channel）
             MLPS: [[[16, 16, 32], [16, 16, 32], [32, 32, 64]],
-                   [[64, 64, 128], [64, 64, 128], [64, 96, 128]],
+                   [[64, 64, 128], [64, 64, 128], [64, 96, 128]], # 3个Sequential，每个输出channel
                    [[128, 128, 256], [128, 196, 256], [128, 256, 256]]] # 最终256
-            AGGREGATION_MLPS: [[64], [128], [256]]
-            CONFIDENCE_MLPS: [[32], [64], []] # 基于3dssd新添加的
+            # 下面2个MLP
+            AGGREGATION_MLPS: [[64], [128], [256]] # 聚合MLPS
+            CONFIDENCE_MLPS: [[32], [64], []] # 基于3dssd新添加的 # 置信度？？？
             WEIGHT_GAMMA: 1.0
             DILATED_RADIUS_GROUP: True
 
@@ -80,12 +82,12 @@ MODEL:
         CLASS_AGNOSTIC: False
         USE_BN: True
 
-        SAMPLE_RANGE: [ 0, 256 ] # 采样范围256个点
-        VOTE_CONFIG:
+        SAMPLE_RANGE: [ 0, 256 ] # 采样范围256个点[0:256]
+        VOTE_CONFIG: #     (vote_layers):得到偏移量
             VOTE_FC: [ 128 ] # Vote
             MAX_TRANSLATION_RANGE: [ 3.0, 3.0, 2.0 ]
 
-        # sasa配置
+        # sasa配置（特征）
         SA_CONFIG:
             RADIUS: [ 4.8, 6.4 ]
             NSAMPLE: [ 48, 64 ]
@@ -93,9 +95,9 @@ MODEL:
                    [ 256, 512, 1024 ]]
         
         # 全连接 分类和回归头
-        SHARED_FC: [ 512, 256 ]
-        CLS_FC: [ 128 ]
-        REG_FC: [ 128 ]
+        SHARED_FC: [ 512, 256 ] # 全连接 
+        CLS_FC: [ 128 ] # 分类 256, 128
+        REG_FC: [ 128 ] # 回归 256, 128
 
         # GT配置?
         TARGET_CONFIG:

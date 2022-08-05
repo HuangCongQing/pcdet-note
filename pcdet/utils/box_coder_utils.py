@@ -256,11 +256,11 @@ class PointResidualCoder(object):
         return torch.cat([xg, yg, zg, dxg, dyg, dzg, rg, *cgs], dim=-1)
 
 
-# 3dssd用的这个编码解码   在yaml有参数配置
-class PointBinResidualCoder(object):
+# 3dssd用的这个编码解码   在yaml有参数配置  下面code_size=30
+class PointBinResidualCoder(object):  
     def __init__(self, code_size=30, use_mean_size=True, angle_bin_num=12, pred_velo=False, **kwargs):
         super().__init__()
-        self.code_size = 6 + 2 * angle_bin_num
+        self.code_size = 6 + 2 * angle_bin_num  #6+2*12 = 30 # 分成多少个bin？
         self.angle_bin_num = angle_bin_num
         self.pred_velo = pred_velo
         if pred_velo:
@@ -269,28 +269,30 @@ class PointBinResidualCoder(object):
         if self.use_mean_size:
             self.mean_size = torch.from_numpy(np.array(kwargs['mean_size'])).cuda().float()
             assert self.mean_size.min() > 0
-
+    
+    # 对角度编码
     def encode_angle_torch(self, angle):
         """
         Args:
-            angle: (N)
+            angle: (N) # 68
         Returns:
             angle_cls: (N, angle_bin_num)
             angle_res: (N, angle_bin_num)
         """
-        angle = torch.remainder(angle, np.pi * 2.0)
-        angle_per_class = np.pi * 2.0 / float(self.angle_bin_num)
-        shifted_angle = torch.remainder(angle + angle_per_class / 2.0, np.pi * 2.0)
+        angle = torch.remainder(angle, np.pi * 2.0)  # 2*pi的余数 ,使其范围（0, 2pi）
+        angle_per_class = np.pi * 2.0 / float(self.angle_bin_num) # 2pi/12 = 0.52每个bin的弧度
+        shifted_angle = torch.remainder(angle + angle_per_class / 2.0, np.pi * 2.0) # 每个基于0弧度的偏转弧度
 
-        angle_cls_f = (shifted_angle / angle_per_class).floor()
-        angle_cls = angle_cls_f.new_zeros(*list(angle_cls_f.shape), self.angle_bin_num)
-        angle_cls.scatter_(-1, angle_cls_f.unsqueeze(-1).long(), 1.0)
+        angle_cls_f = (shifted_angle / angle_per_class).floor() # 所在bin
+        angle_cls = angle_cls_f.new_zeros(*list(angle_cls_f.shape), self.angle_bin_num) # （68，12）
+        angle_cls.scatter_(-1, angle_cls_f.unsqueeze(-1).long(), 1.0) # 转成one-hot tensor([[1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.], ...
 
         angle_res = shifted_angle - (angle_cls_f * angle_per_class + angle_per_class / 2.0)
         angle_res = angle_res / angle_per_class  # normalize residual angle to [0, 1]
-        angle_res = angle_cls * angle_res.unsqueeze(-1)
-        return angle_cls, angle_res
+        angle_res = angle_cls * angle_res.unsqueeze(-1) # 所在bin的百分占比
+        return angle_cls, angle_res # （所在bin,  bin的具体位置百分比）
 
+    # 对角度解码
     def decode_angle_torch(self, angle_cls, angle_res):
         """
         Args:
@@ -306,7 +308,8 @@ class PointBinResidualCoder(object):
         angle_res = (angle_cls_onehot * angle_res).sum(dim=-1)
         angle = (angle_cls_idx.float() + angle_res) * (np.pi * 2.0 / float(self.angle_bin_num))
         return angle
-    # 编码
+    
+    # 编码main======================================
     def encode_torch(self, gt_boxes, points, gt_classes=None):
         """
         Args:
@@ -318,12 +321,12 @@ class PointBinResidualCoder(object):
         """
         gt_boxes[:, 3:6] = torch.clamp_min(gt_boxes[:, 3:6], min=1e-5)
 
-        xg, yg, zg, dxg, dyg, dzg, rg, *cgs = torch.split(gt_boxes, 1, dim=-1)
+        xg, yg, zg, dxg, dyg, dzg, rg, *cgs = torch.split(gt_boxes, 1, dim=-1) # rg 朝向角
         xa, ya, za = torch.split(points, 1, dim=-1)
 
-        if self.use_mean_size:
+        if self.use_mean_size: # 'use_mean_size': False, # ？？？？？
             assert gt_classes.max() <= self.mean_size.shape[0]
-            point_anchor_size = self.mean_size[gt_classes - 1]
+            point_anchor_size = self.mean_size[gt_classes - 1] # 
             dxa, dya, dza = torch.split(point_anchor_size, 1, dim=-1)
             diagonal = torch.sqrt(dxa ** 2 + dya ** 2)
             xt = (xg - xa) / diagonal
@@ -333,17 +336,18 @@ class PointBinResidualCoder(object):
             dyt = torch.log(dyg / dya)
             dzt = torch.log(dzg / dza)
         else:
-            xt = (xg - xa)
+            xt = (xg - xa) # 和gt的差值
             yt = (yg - ya)
             zt = (zg - za)
-            dxt = torch.log(dxg)
+            dxt = torch.log(dxg) # 计算log
             dyt = torch.log(dyg)
             dzt = torch.log(dzg)
 
-        rg_cls, rg_reg = self.encode_angle_torch(rg.squeeze(-1))
+            rg_cls, rg_reg = self.encode_angle_torch(rg.squeeze(-1)) #  rg 朝向角编码================
         cts = [g for g in cgs]
         return torch.cat([xt, yt, zt, dxt, dyt, dzt, rg_cls, rg_reg, *cts], dim=-1)
 
+    # 被下面decode_torch解码调用
     def decode_torch_kernel(self, box_offsets, box_angle_cls, box_angle_reg, points, pred_classes=None):
         """
         Args:
@@ -381,7 +385,7 @@ class PointBinResidualCoder(object):
         rg = self.decode_angle_torch(box_angle_cls, box_angle_reg).unsqueeze(-1)
         return torch.cat([xg, yg, zg, dxg, dyg, dzg, rg], dim=-1)
 
-    # anchor_free解码  实际输入: box_encodings(256,30) 输入角度是cos, sin
+    # anchor_free解码  实际输入: box_encodings(256,30) 输入角度是cos, sin  min======================================
     def decode_torch(self, box_encodings, points, pred_classes=None):
         """
         Args:
@@ -397,4 +401,4 @@ class PointBinResidualCoder(object):
         cgs = box_encodings[:, 6 + self.angle_bin_num * 2:]
 
         boxes3d = self.decode_torch_kernel(box_offsets, box_angle_cls, box_angle_reg, points, pred_classes) # 解码decode_torch_kernel
-        return torch.cat([boxes3d, cgs], dim=-1)
+        return torch.cat([boxes3d, cgs], dim=-1) # (N, 7)

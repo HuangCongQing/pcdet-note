@@ -5,7 +5,7 @@ from ...ops.pointnet2.pointnet2_batch import pointnet2_modules
 from ...ops.pointnet2.pointnet2_stack import pointnet2_modules as pointnet2_modules_stack
 from ...ops.pointnet2.pointnet2_stack import pointnet2_utils as pointnet2_utils_stack
 
-# 当前只有pointRCNN使用了
+# 当前只有pointRCNN使用
 class PointNet2MSG(nn.Module):
     def __init__(self, model_cfg, input_channels, **kwargs):
         super().__init__()
@@ -103,47 +103,50 @@ class PointNet2MSG(nn.Module):
         batch_dict['point_coords'] = torch.cat((batch_idx[:, None].float(), l_xyz[0].view(-1, 3)), dim=1)
         return batch_dict
 
-# 3dssd的BACKBONE_3D》》》》》》》》》》》》》》》》》》》main
+# 3dssd的BACKBONE_3D》》》》》》》》》》》》》》》》》》》main=======================================
 class PointNet2FSMSG(nn.Module):
     def __init__(self, model_cfg, input_channels, **kwargs):
         super().__init__()
         self.model_cfg = model_cfg
 
         self.SA_modules = nn.ModuleList()
-        channel_in = input_channels - 3
+        channel_in = input_channels - 3 #  4-1
 
         use_xyz = self.model_cfg.SA_CONFIG.get('USE_XYZ', True)
-        dilated_group = self.model_cfg.SA_CONFIG.get('DILATED_RADIUS_GROUP', False)
-        skip_connection = self.model_cfg.SA_CONFIG.get('SKIP_CONNECTION', False)
+        dilated_group = self.model_cfg.SA_CONFIG.get('DILATED_RADIUS_GROUP', False) # True
+        skip_connection = self.model_cfg.SA_CONFIG.get('SKIP_CONNECTION', False) # 0
         weight_gamma = self.model_cfg.SA_CONFIG.get('WEIGHT_GAMMA', 1.0)
 
-        self.aggregation_mlps = self.model_cfg.SA_CONFIG.get('AGGREGATION_MLPS', None)
+        self.aggregation_mlps = self.model_cfg.SA_CONFIG.get('AGGREGATION_MLPS', None) # [[64], [128], [256]] 
         self.confidence_mlps = self.model_cfg.SA_CONFIG.get('CONFIDENCE_MLPS', None)
 
         self.num_points_each_layer = []
         skip_channel_list = [input_channels - 3]
         # for循环参数3：NPOINT_LIST: [[4096], [512, 512], [256, 256]]
         for k in range(self.model_cfg.SA_CONFIG.NPOINT_LIST.__len__()):
-            mlps = self.model_cfg.SA_CONFIG.MLPS[k].copy()
+            mlps = self.model_cfg.SA_CONFIG.MLPS[k].copy() # 以第一次循环举例：k=0: [16, 16, 32], [16, 16, 32], [32, 32, 64]]
             channel_out = 0
             for idx in range(mlps.__len__()):
-                mlps[idx] = [channel_in] + mlps[idx]
-                channel_out += mlps[idx][-1]
+                mlps[idx] = [channel_in] + mlps[idx] # [4, 16, 16, 32] # 添加一维输入channel_in
+                channel_out += mlps[idx][-1] # 32+32+64 = 128
 
+            # 不执行
             if skip_connection:
                 channel_out += channel_in
 
+            # AGGREGATION_MLPS: [[64], [128], [256]] 
             if self.aggregation_mlps and self.aggregation_mlps[k]:
-                aggregation_mlp = self.aggregation_mlps[k].copy()
+                aggregation_mlp = self.aggregation_mlps[k].copy() # AGGREGATION_MLPS: [[64], [128], [256]] 
                 if aggregation_mlp.__len__() == 0:
                     aggregation_mlp = None
                 else:
-                    channel_out = aggregation_mlp[-1]
+                    channel_out = aggregation_mlp[-1] # 64
             else:
                 aggregation_mlp = None
-
+            
+            # CONFIDENCE_MLPS: [[32], [64], []]
             if self.confidence_mlps and self.confidence_mlps[k]:
-                confidence_mlp = self.confidence_mlps[k].copy()
+                confidence_mlp = self.confidence_mlps[k].copy() # CONFIDENCE_MLPS: [[32], [64], []] # 基于3dssd新添加的 # 置信度？？？
                 if confidence_mlp.__len__() == 0:
                     confidence_mlp = None
             else:
@@ -156,22 +159,23 @@ class PointNet2FSMSG(nn.Module):
                     npoint_list=self.model_cfg.SA_CONFIG.NPOINT_LIST[k], # NPOINT_LIST: [[4096], [512, 512], [256, 256]]
                     sample_range_list=self.model_cfg.SA_CONFIG.SAMPLE_RANGE_LIST[k], # SAMPLE_RANGE_LIST: [[[0, 16384]], [[0, 4096], [0, 4096]], [[0, 512], [512, 1024]]]
                     sample_method_list=self.model_cfg.SA_CONFIG.SAMPLE_METHOD_LIST[k], # 方法参数配置 [['d-fps'], ['s-fps', 'd-fps'], ['s-fps', 'd-fps']]
-                    radii=self.model_cfg.SA_CONFIG.RADIUS[k],
-                    nsamples=self.model_cfg.SA_CONFIG.NSAMPLE[k],
+                    radii=self.model_cfg.SA_CONFIG.RADIUS[k], #  [[0.2, 0.4, 0.8], [0.4, 0.8, 1.6], [1.6, 3.2, 4.8]] # 感受野？？？？
+                    nsamples=self.model_cfg.SA_CONFIG.NSAMPLE[k], # NSAMPLE: [[32, 32, 64], [32, 32, 64], [32, 32, 64]] # 采样点数？？
                     mlps=mlps,
                     use_xyz=use_xyz,
                     dilated_radius_group=dilated_group,
                     skip_connection=skip_connection,
                     weight_gamma=weight_gamma,
-                    aggregation_mlp=aggregation_mlp, # 传参
-                    confidence_mlp=confidence_mlp # 传参
+                    aggregation_mlp=aggregation_mlp, # 传参 AGGREGATION_MLPS: [[64], [128], [256]] # 聚合MLPS
+                    confidence_mlp=confidence_mlp # 传参 CONFIDENCE_MLPS: [[32], [64], []] # 基于3dssd新添加的 # 置信度？？？
                 )
             )
             self.num_points_each_layer.append(
                 sum(self.model_cfg.SA_CONFIG.NPOINT_LIST[k]))
             skip_channel_list.append(channel_out)
-            channel_in = channel_out
-        
+            channel_in = channel_out # 输出channel等于输出channel
+        # for循环结束
+
         self.num_point_features = channel_out
 
         fp_mlps = self.model_cfg.get('FP_MLPS', None)
@@ -208,7 +212,7 @@ class PointNet2FSMSG(nn.Module):
                 point_confidence_scores: (N, 1) # 
         """
         batch_size = batch_dict['batch_size']
-        points = batch_dict['points'] # 原始点(16384, 5) 第一列没用，暂时还不知道第一列是啥~
+        points = batch_dict['points'] # 原始点(16384, 5) 第一列batch下标~
         # tensor([[0.0000, 6.7280, 1.4690, -1.6452, 0.1900],
         #         [0.0000, 39.1460, 30.0250, 0.1300, 0.0000],
         #         [0.0000, 8.2680, -1.5030, -1.6800, 0.2900],
@@ -229,6 +233,7 @@ class PointNet2FSMSG(nn.Module):
 
         batch_idx = batch_idx.view(batch_size, -1).float() # (1,16384)
 
+        # 初始化
         l_xyz, l_features, l_scores = [xyz], [features], [None] # (B, 16384,3)# (16384,1) (16384,1)
         l_sample_sfps = []
         for i in range(len(self.SA_modules)): # PointnetSAModuleFSMSG( # pcdet/ops/pointnet2/pointnet2_batch/pointnet2_modules.py

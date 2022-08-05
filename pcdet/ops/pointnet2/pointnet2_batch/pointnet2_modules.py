@@ -126,25 +126,26 @@ class PointnetSAModule(PointnetSAModuleMSG):
             pool_method=pool_method
         )
 
+# 下面被for循环执行3次：for i in range(len(self.SA_modules))
 # 3dssd Base  ( ['d-fps'], ['s-fps', 'd-fps'], ['s-fps', 'd-fps']参数中的一个)
 class _PointnetSAModuleFSBase(nn.Module):
 
     def __init__(self):
         super().__init__()
-        self.groupers = None
-        self.mlps = None
+        self.groupers = None # 需要初始化处理
+        self.mlps = None # k=0: [16, 16, 32], [16, 16, 32], [32, 32, 64]]
         self.npoint_list = [] # NPOINT_LIST: [[4096], [512, 512], [256, 256]]
         self.sample_range_list = [[0, -1]] # SAMPLE_RANGE_LIST: [[[0, 16384]], [[0, 4096], [0, 4096]], [[0, 512], [512, 1024]]]
         self.sample_method_list = ['d-fps'] # 方法列表 # [['d-fps'], ['s-fps', 'd-fps'], ['s-fps', 'd-fps']]
-        self.radii = []
+        self.radii = [] # [[0.2, 0.4, 0.8], [0.4, 0.8, 1.6], [1.6, 3.2, 4.8]] # 感受野？？？？
 
         self.pool_method = 'max_pool'
         self.dilated_radius_group = False
         self.weight_gamma = 1.0
         self.skip_connection = False
 
-        self.aggregation_mlp = None
-        self.confidence_mlp = None
+        self.aggregation_mlp = None # AGGREGATION_MLPS: [[64], [128], [256]] # 聚合MLPS
+        self.confidence_mlp = None # CONFIDENCE_MLPS: [[32], [64], []] # 基于3dssd新添加的 # 置信度？？？
 
     def forward(self,
                 xyz: torch.Tensor,
@@ -169,11 +170,11 @@ class _PointnetSAModuleFSBase(nn.Module):
             sample_idx_list = []
             # 遍历方法列表参数中的一个 ： ['d-fps'], ['s-fps', 'd-fps'], ['s-fps', 'd-fps']参数中的一个
             for i in range(len(self.sample_method_list)):
-                #  SAMPLE_RANGE_LIST: [[[0, 16384]], [[0, 4096], [0, 4096]], [[0, 512], [512, 1024]]]
+                #  SAMPLE_RANGE_LIST:    [[[0, 16384]],  [[0, 4096], [0, 4096]], [[0, 512], [512, 1024]]]
                 xyz_slice = xyz[:, self.sample_range_list[i][0]:self.sample_range_list[i][1], :].contiguous() #
-                # print(xyz_slice.shape) #(1,16384,3),[(1,4096,3),(1,4096,3)],[(1,512,3),(1,512,3)]
+                # print(xyz_slice.shape) #(1,16384,3),   [(1,4096,3),(1,4096,3)], [(1,512,3),(1,512,3)]
                 if self.sample_method_list[i] == 'd-fps':
-                    sample_idx = pointnet2_utils.furthest_point_sample(xyz_slice, self.npoint_list[i]) # NPOINT_LIST: [[4096], [512, 512], [256, 256]]
+                    sample_idx = pointnet2_utils.furthest_point_sample(xyz_slice, self.npoint_list[i]) # NPOINT_LIST: [[4096],   [512, 512],   [256, 256]]
                 elif self.sample_method_list[i] == 'f-fps':
                     features_slice = features[:, :, self.sample_range_list[i][0]:self.sample_range_list[i][1]] # 得到范围
                     dist_matrix = pointnet2_utils.calc_dist_matrix_for_sampling(xyz_slice,
@@ -198,7 +199,7 @@ class _PointnetSAModuleFSBase(nn.Module):
                     raise NotImplementedError
 
                 sample_idx_list.append(sample_idx + self.sample_range_list[i][0]) # 得到下标列表    SAMPLE_RANGE_LIST: [[[0, 16384]], [[0, 4096], [0, 4096]], [[0, 512], [512, 1024]]]
-                # print(sample_idx_list) # 一共输出3次  第一次：list[1:tensor(1,4096)]到下面  第二次：list[2:tensor(1,512)+tensor(1,512)] 第三次：list[2:tensor(1,256)+tensor(1,256)]
+                # print(sample_idx_list) # 一共输出3次  第一次：list[1:tensor(1,4096)]到下面  第二次：list[2:tensor(1,512)，tensor(1,512)] 第三次：list[2:tensor(1,256)，tensor(1,256)]
             # for  end
 
             sample_idx = torch.cat(sample_idx_list, dim=-1) # list 一共3次
@@ -221,10 +222,13 @@ class _PointnetSAModuleFSBase(nn.Module):
                     sample_idx
                 ) if features is not None else None  # (B, C, npoint)
 
-        # 3 次
+        # 1groupers+2mlp
         for i in range(len(self.groupers)):
+            #  (1 groupers): ModuleList
             idx_cnt, new_features = self.groupers[i](xyz, new_xyz, features)  # (B, C, npoint, nsample)
-            new_features = self.mlps[i](new_features)  # (B, mlp[-1], npoint, nsample)
+
+            #  (2 mlps): ModuleList
+            new_features = self.mlps[i](new_features)  # (B, mlp[-1], npoint, nsample)  k=0: [16, 16, 32], [16, 16, 32], [32, 32, 64]]
             idx_cnt_mask = (idx_cnt > 0).float()  # (B, npoint)
             idx_cnt_mask = idx_cnt_mask.unsqueeze(1).unsqueeze(-1)  # (B, 1, npoint, 1)
             new_features *= idx_cnt_mask
@@ -246,38 +250,41 @@ class _PointnetSAModuleFSBase(nn.Module):
         if self.skip_connection and old_features is not None:
             new_features_list.append(old_features)
 
+        #  (3 aggregation_mlp): Sequential
         new_features = torch.cat(new_features_list, dim=1)
         if self.aggregation_mlp is not None:
-            new_features = self.aggregation_mlp(new_features)
+            new_features = self.aggregation_mlp(new_features) # 输入是new_features
 
+        #   (4 confidence_mlp): Sequential CONFIDENCE_MLPS: [[32], [64], []] # 基于3dssd新添加的 # 置信度？？？
         if self.confidence_mlp is not None:
             new_scores = self.confidence_mlp(new_features)
             new_scores = new_scores.squeeze(1)  # (B, npoint)
-            return new_xyz, new_features, new_scores, sample_sfps  # 在这返回 返回值=============================================================================
+            return new_xyz, new_features, new_scores, sample_sfps  #  在这返回值=============================================================================
 
-        return new_xyz, new_features, None, sample_sfps # (1,512,3), (1,256,512)
+        return new_xyz, new_features, None, sample_sfps # (1,512,3), (1,256,512) 因为CONFIDENCE_MLPS参数最后一次为None 在这运行
 
 # 被调用pcdet/models/dense_heads/point_head_vote.py
 # SAMPLE_METHOD_LIST: [['d-fps'], ['s-fps', 'd-fps'], ['s-fps', 'd-fps']]
 # 流程：  (0): PointnetSAModuleFSMSG(   groupers， mlps，aggregation_mlp，confidence_mlp
+# 被调用3次 forward没有变，只是修改了初始化__init__ 包括：step1-4！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
 class PointnetSAModuleFSMSG(_PointnetSAModuleFSBase):
     """Pointnet set abstraction layer with fusion sampling and multiscale grouping"""
 
     def __init__(self, *,
-                 npoint_list: List[int] = None,
-                 sample_range_list: List[List[int]] = None,
-                 sample_method_list: List[str] = None, # 方法列表
-                 radii: List[float],
-                 nsamples: List[int],
-                 mlps: List[List[int]],
+                 npoint_list: List[int] = None,# [k] NPOINT_LIST: [[4096], [512, 512], [256, 256]]
+                 sample_range_list: List[List[int]] = None,   #[k]  #SAMPLE_RANGE_LIST: [[[0, 16384]], [[0, 4096], [0, 4096]], [[0, 512], [512, 1024]]]
+                 sample_method_list: List[str] = None, # [k] 方法参数配置 [['d-fps'], ['s-fps', 'd-fps'], ['s-fps', 'd-fps']]
+                 radii: List[float],#  [[0.2, 0.4, 0.8], [0.4, 0.8, 1.6], [1.6, 3.2, 4.8]] # 感受野？？？？
+                 nsamples: List[int],# NSAMPLE: [[32, 32, 64], [32, 32, 64], [32, 32, 64]] # 采样点数？？
+                 mlps: List[List[int]], # 其中一层的[16, 16, 32], [16, 16, 32], [32, 32, 64],  [[64, 64, 128], [64, 64, 128], [64, 96, 128]]   [[128, 128, 256], [128, 196, 256], [128, 256, 256]]]
                  bn: bool = True,
                  use_xyz: bool = True,
                  pool_method='max_pool',
                  dilated_radius_group: bool = False,
                  skip_connection: bool = False,
                  weight_gamma: float = 1.0,
-                 aggregation_mlp: List[int] = None,
-                 confidence_mlp: List[int] = None):
+                 aggregation_mlp: List[int] = None, # 传参 AGGREGATION_MLPS: [[64], [128], [256]] # 聚合MLPS
+                 confidence_mlp: List[int] = None): # CONFIDENCE_MLPS: [[32], [64], []] # 基于3dssd新添加的 # 置信度？？？
         """
         :param npoint_list: list of int, number of samples for every sampling method
         :param sample_range_list: list of list of int, sample index range [left, right] for every sampling method
@@ -308,30 +315,32 @@ class PointnetSAModuleFSMSG(_PointnetSAModuleFSBase):
 
         former_radius = 0.0
         in_channels, out_channels = 0, 0
+        # loop3次 step1 ： self.groupers
         for i in range(len(radii)):
-            radius = radii[i]
-            nsample = nsamples[i]
-            if dilated_radius_group:
-                self.groupers.append(
-                    pointnet2_utils.QueryAndGroupDilated(former_radius, radius, nsample, use_xyz=use_xyz) # 
+            radius = radii[i] # RADIUS: [[0.2, 0.4, 0.8], [0.4, 0.8, 1.6], [1.6, 3.2, 4.8]] # 感受野？？？？
+            nsample = nsamples[i] # NSAMPLE: [[32, 32, 64], [32, 32, 64], [32, 32, 64]] # 采样点数？？
+            if dilated_radius_group: # True
+                self.groupers.append( #   (1 groupers): ModuleList
+                    pointnet2_utils.QueryAndGroupDilated(former_radius, radius, nsample, use_xyz=use_xyz) # pcdet/ops/pointnet2/pointnet2_batch/pointnet2_utils.py
                 )
             else:
                 self.groupers.append(
                     pointnet2_utils.QueryAndGroup(radius, nsample, use_xyz=use_xyz)
                 )
             former_radius = radius
-            mlp_spec = mlps[i]
+            # step2 ： self.mlps
+            mlp_spec = mlps[i] #  k=0: [[1, 16, 16, 32], [1, 16, 16, 32], [1, 32, 32, 64]] # 添加一维输入channel_in
             if use_xyz:
-                mlp_spec[0] += 3
+                mlp_spec[0] += 3 # 4 [[4, 16, 16, 32], [4, 16, 16, 32], [4, 32, 32, 64]]
 
             shared_mlp = []
-            for k in range(len(mlp_spec) - 1):
+            for k in range(len(mlp_spec) - 1): # [4, 16, 16, 32]
                 shared_mlp.extend([
-                    nn.Conv2d(mlp_spec[k], mlp_spec[k + 1], kernel_size=1, bias=False),
+                    nn.Conv2d(mlp_spec[k], mlp_spec[k + 1], kernel_size=1, bias=False), # 参数
                     nn.BatchNorm2d(mlp_spec[k + 1]),
                     nn.ReLU()
                 ])
-            self.mlps.append(nn.Sequential(*shared_mlp))
+            self.mlps.append(nn.Sequential(*shared_mlp)) #  (2 mlps): ModuleList
             in_channels = mlp_spec[0] - 3 if use_xyz else mlp_spec[0]
             out_channels += mlp_spec[-1]
 
@@ -343,7 +352,7 @@ class PointnetSAModuleFSMSG(_PointnetSAModuleFSBase):
         if skip_connection:
             out_channels += in_channels
 
-        # step3
+        # step3 AGGREGATION_MLPS: [[64], [128], [256]] # 聚合MLPS
         if aggregation_mlp is not None:
             shared_mlp = []
             for k in range(len(aggregation_mlp)):
@@ -357,7 +366,7 @@ class PointnetSAModuleFSMSG(_PointnetSAModuleFSBase):
         else:
             self.aggregation_mlp = None
 
-        # step4
+        # step4 CONFIDENCE_MLPS: [[32], [64], []] # 基于3dssd新添加的 # 置信度？？？
         if confidence_mlp is not None:
             shared_mlp = []
             for k in range(len(confidence_mlp)):
@@ -367,6 +376,7 @@ class PointnetSAModuleFSMSG(_PointnetSAModuleFSBase):
                     nn.ReLU()
                 ])
                 out_channels = confidence_mlp[k]
+            # 添加nn.Conv1d
             shared_mlp.append(
                 nn.Conv1d(out_channels, 1, kernel_size=1, bias=True),
             )
