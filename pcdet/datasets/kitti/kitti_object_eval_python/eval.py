@@ -155,10 +155,12 @@ def d3_box_overlap_kernel(boxes, qboxes, rinc, criterion=-1):
                 else:
                     rinc[i, j] = 0.0
 
-
+# 计算3d的iou===========================================
 def d3_box_overlap(boxes, qboxes, criterion=-1):
+    # 1 判断高度上是否有重叠,得到重叠矩阵  pcdet/datasets/kitti/kitti_object_eval_python/rotate_iou.py
     rinc = rotate_iou_gpu_eval(boxes[:, [0, 2, 3, 5, 6]],
                                qboxes[:, [0, 2, 3, 5, 6]], 2)
+    # 2 计算IOU
     d3_box_overlap_kernel(boxes, qboxes, rinc, criterion)
     return rinc
 
@@ -345,7 +347,7 @@ def fused_compute_statistics(overlaps,
         dt_num += dt_nums[i]
         dc_num += dc_nums[i]
 
-
+# 计算IOU
 def calculate_iou_partly(gt_annos, dt_annos, metric, num_parts=50):
     """fast iou algorithm. this function can be used independently to
     do result analysis. Must be used in CAMERA coordinate system.
@@ -387,7 +389,7 @@ def calculate_iou_partly(gt_annos, dt_annos, metric, num_parts=50):
                 [loc, dims, rots[..., np.newaxis]], axis=1)
             overlap_part = bev_box_overlap(gt_boxes, dt_boxes).astype(
                 np.float64)
-        elif metric == 2:
+        elif metric == 2: #  2: 3d
             loc = np.concatenate([a["location"] for a in gt_annos_part], 0)
             dims = np.concatenate([a["dimensions"] for a in gt_annos_part], 0)
             rots = np.concatenate([a["rotation_y"] for a in gt_annos_part], 0)
@@ -398,6 +400,7 @@ def calculate_iou_partly(gt_annos, dt_annos, metric, num_parts=50):
             rots = np.concatenate([a["rotation_y"] for a in dt_annos_part], 0)
             dt_boxes = np.concatenate(
                 [loc, dims, rots[..., np.newaxis]], axis=1)
+            # 计算overlap=============================================================
             overlap_part = d3_box_overlap(gt_boxes, dt_boxes).astype(
                 np.float64)
         else:
