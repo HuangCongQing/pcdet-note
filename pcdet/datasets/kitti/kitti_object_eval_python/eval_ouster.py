@@ -4,7 +4,7 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2022-08-05 22:31:39
-LastEditTime: 2022-08-05 22:31:45
+LastEditTime: 2022-08-06 00:12:49
 FilePath: /PCDet/pcdet/datasets/kitti/kitti_object_eval_python/eval_ouster.py
 '''
 import gc
@@ -268,7 +268,7 @@ def compute_statistics_jit(overlaps,
                 continue
             if (ignored_threshold[j]):
                 continue
-            # 获取 overlaps 中相应的数值
+            # 获取 overlaps 中相应的数值======================================================
             overlap = overlaps[j, i]
             # 获取这个预测框的得分 
             dt_score = dt_scores[j]
@@ -278,8 +278,8 @@ def compute_statistics_jit(overlaps,
             elif (compute_fp and (overlap > min_overlap)
                   and (overlap > max_overlap or assigned_ignored_det)
                   and ignored_det[j] == 0):
-                max_overlap = overlap
-                det_idx = j
+                max_overlap = overlap # 当全最大overlap
+                det_idx = j # 当前的检测id
                 valid_detection = 1
                 assigned_ignored_det = False
             elif (compute_fp and (overlap > min_overlap)
@@ -290,6 +290,7 @@ def compute_statistics_jit(overlaps,
                 valid_detection = 1
                 assigned_ignored_det = True
 
+        # tp fn等计算
         if (valid_detection == NO_DETECTION) and ignored_gt[i] == 0:
             # 如果没有找到，valid_detection还等于 NO_DETECTION，
             # 且真实框确实属于vehicle类别，则fn+1
@@ -458,7 +459,7 @@ def compute_statistics_jit1(
                            ignored_det,
                            metric,
                            min_overlap,
-                           thresh=0,
+                           thresh=0, # 自己设置的阈值
                            compute_fp=False,
                            compute_aos=False):
 
@@ -487,6 +488,7 @@ def compute_statistics_jit1(
     delta = np.zeros((gt_size, ))
     delta_idx = 0
 
+    # 遍历GT的数据
     for i in range(gt_size):
         if ignored_gt[i] == -1:
             #如果不是当前class，如vehicle类别，
@@ -498,7 +500,7 @@ def compute_statistics_jit1(
         max_overlap = 0
         assigned_ignored_det = False
 
-        # 遍历det中的所有数据，找到一个与真实值最高得分的框
+        # 遍历det中的所有数据，找到一个与真实值最高得分的框，其下表id=det_idx
         for j in range(det_size):
             # 如果该数据 无效，则跳过继续判断
             if (ignored_det[j] == -1):
@@ -508,7 +510,7 @@ def compute_statistics_jit1(
             if (ignored_threshold[j]):
                 continue
 
-            # 获取 overlaps 中相应的数值
+            # 获取 overlaps 中相应的iou数值
             overlap = overlaps[j, i] ##！！！！============================================================
             # 获取这个预测框的得分 
             dt_score = dt_scores[j]
@@ -529,6 +531,7 @@ def compute_statistics_jit1(
                 det_idx = j
                 valid_detection = 1
                 assigned_ignored_det = True
+        # 以上for循环结束，得到和GT最匹配的的一个预测框，其下表id=det_idx
 
         if (valid_detection == NO_DETECTION) and ignored_gt[i] == 0:
             # 如果没有找到，valid_detection还等于 NO_DETECTION，
@@ -541,10 +544,10 @@ def compute_statistics_jit1(
             # 这种情况是检测出来了，且是正确的
             tp += 1  # ===========================================================
             # thresholds.append(dt_scores[det_idx])
-            thresholds[thresh_idx] = dt_scores[det_idx]
+            thresholds[thresh_idx] = dt_scores[det_idx] # dt_scores # N x 1阵列，表示的是预测得到的N个物体的得分情况score
             thresh_idx += 1
             
-            assigned_detection[det_idx] = True
+            assigned_detection[det_idx] = True # 其预测框的设置为True（默认都是False）
     
     
     if compute_fp:
@@ -552,7 +555,7 @@ def compute_statistics_jit1(
         for i in range(det_size):
             if (not (assigned_detection[i] or ignored_det[i] == -1
                      or ignored_det[i] == 1 or ignored_threshold[i])):
-                fp += 1
+                fp += 1 # gt是对的，预测为错的
         nstuff = 0
         fp -= nstuff
 
@@ -862,14 +865,14 @@ def eval_class(gt_annos,
                 thresholdss = [] # 初始化
                 for i in range(len(gt_annos)):
                     rets = compute_statistics_jit( # 3 计算tp, fp, fn, similarity, thresholds====================================
-                        overlaps[i],
+                        overlaps[i], # gt和dt的iou======================
                         gt_datas_list[i],      # 是一个数，表示当前帧中的物体个数  19帧  [1, 2, 3, 3, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
                         dt_datas_list[i], # N x 1阵列，表示的是预测得到的N个物体的得分情况 举例： [[0.9999982 ], [0.999997  ], [0.99999654], [0.99999547], [0.99999547]]
                         ignored_gts[i],   # 长度N数组，-1、0
                         ignored_dets[i],     # 长度N数组，-1、0
                         # dontcares[i],
                         metric,          # 0, 1, 或 2 (bbox, bev, 3d)
-                        min_overlap=min_overlap,      # 浮动最小IOU阈值为正
+                        min_overlap=min_overlap,      # 浮动最小IOU阈值为正阈值
                         thresh=0.0,
                         compute_fp=False)
                     tp, fp, fn, similarity, thresholds = rets # ======================================

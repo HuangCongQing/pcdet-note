@@ -10,7 +10,7 @@ from ...utils import box_coder_utils, box_utils, common_utils, loss_utils
 from .point_head_template import PointHeadTemplate
 
 # ros2 rviz
-from tools.visualize_ros2 import PointCloudPublisher
+# from tools.visualize_ros2 import PointCloudPublisher
 
 # 投票  继承 pcdet/models/dense_heads/point_head_template.py
 class PointHeadVote(PointHeadTemplate):
@@ -31,7 +31,7 @@ class PointHeadVote(PointHeadTemplate):
             fc_list=self.vote_cfg.VOTE_FC # [128]
         )
         # # ros vis
-        self.pub = PointCloudPublisher("sasa_pub",interval=1)
+        # self.pub = PointCloudPublisher("sasa_pub",interval=1)
 
         self.sa_cfg = self.model_cfg.SA_CONFIG
         # 
