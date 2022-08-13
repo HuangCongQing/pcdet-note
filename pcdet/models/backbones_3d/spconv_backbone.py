@@ -73,7 +73,7 @@ class SparseBasicBlock(SparseModule):
 
         return out
 
-
+# spconv入口 main https://www.yuque.com/huangzhongqing/hpc/zgo42t ========================
 class VoxelBackBone8x(nn.Module):
     def __init__(self, model_cfg, input_channels, grid_size, **kwargs):
         super().__init__()
@@ -138,6 +138,7 @@ class VoxelBackBone8x(nn.Module):
         """
         voxel_features, voxel_coords = batch_dict['voxel_features'], batch_dict['voxel_coords']
         batch_size = batch_dict['batch_size']
+        # 在进行稀疏卷积之前，要构建Sparse Tensor
         input_sp_tensor = spconv.SparseConvTensor(
             features=voxel_features,
             indices=voxel_coords.int(),
