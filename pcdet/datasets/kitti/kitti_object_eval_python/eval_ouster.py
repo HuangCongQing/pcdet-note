@@ -4,7 +4,7 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2022-08-05 22:31:39
-LastEditTime: 2022-08-06 00:12:49
+LastEditTime: 2022-08-15 23:30:50
 FilePath: /PCDet/pcdet/datasets/kitti/kitti_object_eval_python/eval_ouster.py
 '''
 import gc
@@ -603,6 +603,7 @@ def fused_compute_statistics(overlaps,
     gt_num = 0
     dt_num = 0
     # dc_num = 0
+    # 传入的数据是10帧数据，分10次进行运行
     for i in range(gt_nums.shape[0]):
         for t, thresh in enumerate(thresholds):
             overlap = overlaps[dt_num:dt_num + dt_nums[i], gt_num:gt_num + gt_nums[i]]
