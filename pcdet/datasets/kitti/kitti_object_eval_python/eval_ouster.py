@@ -4,7 +4,7 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2022-08-05 22:31:39
-LastEditTime: 2022-08-15 23:30:50
+LastEditTime: 2022-08-15 23:42:33
 FilePath: /PCDet/pcdet/datasets/kitti/kitti_object_eval_python/eval_ouster.py
 '''
 import gc
@@ -905,7 +905,7 @@ def eval_class(gt_annos,
                     # 再将各部分数据融合===
                     fused_compute_statistics( # 调用compute_statistics_jit1===================
                         parted_overlaps[j],
-                        pr,
+                        pr, # 重点计算====================================================
                         total_gt_num[idx:idx + num_part],
                         total_dt_num[idx:idx + num_part],
                         # total_dc_num[idx:idx + num_part],
@@ -920,14 +920,14 @@ def eval_class(gt_annos,
                         # compute_aos=compute_aos
                         )
                     idx += num_part
-                # #计算recall和precision
+                # #计算每个阈值recall和precision
                 for i in range(len(thresholds)):
                     recall[m, idx_l, k, i] = pr[i, 0] / (pr[i, 0] + pr[i, 2])
                     precision[m, idx_l, k, i] = pr[i, 0] / (
                         pr[i, 0] + pr[i, 1])
                     if compute_aos:
                         aos[m, idx_l, k, i] = pr[i, 3] / (pr[i, 0] + pr[i, 1])
-                # 返回各自序列的最值
+                # 返回各自recall和precision序列的最值
                 for i in range(len(thresholds)):
                     precision[m, idx_l, k, i] = np.max(
                         precision[m, idx_l, k, i:], axis=-1)
