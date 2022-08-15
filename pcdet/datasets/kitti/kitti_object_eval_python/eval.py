@@ -4,7 +4,7 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2021-08-03 09:26:49
-LastEditTime: 2021-08-03 18:33:31
+LastEditTime: 2022-08-15 11:38:52
 FilePath: /PCDet/pcdet/datasets/kitti/kitti_object_eval_python/eval.py
 '''
 import io as sysio
@@ -674,7 +674,7 @@ def do_coco_style_eval(gt_annos, dt_annos, current_classes, overlap_ranges,
         mAP_aos = mAP_aos.mean(-1)
     return mAP_bbox, mAP_bev, mAP_3d, mAP_aos
 
-# 打印输出结果============================================================================================
+# 打印输出结果main============================================================================================
 def get_official_eval_result(gt_annos, dt_annos, current_classes, PR_detail_dict=None):
     overlap_0_7 = np.array([[0.7, 0.5, 0.5, 0.7,
                              0.5, 0.7], [0.7, 0.5, 0.5, 0.7, 0.5, 0.7],
