@@ -292,6 +292,7 @@ def rotate_iou_kernel_eval(N, K, dev_boxes, dev_query_boxes, dev_iou, criterion=
                                            block_boxes[tx * 5:tx * 5 + 5], criterion)
 
 
+# main================================
 def rotate_iou_gpu_eval(boxes, query_boxes, criterion=-1, device_id=0):
     """rotated box iou running in gpu. 500x faster than cpu version
     (take 5ms in one example with numba.cuda code).

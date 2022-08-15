@@ -4,7 +4,7 @@ Author: HCQ
 Company(School): UCAS
 Email: 1756260160@qq.com
 Date: 2022-08-05 22:31:39
-LastEditTime: 2022-08-15 23:42:33
+LastEditTime: 2022-08-16 00:36:21
 FilePath: /PCDet/pcdet/datasets/kitti/kitti_object_eval_python/eval_ouster.py
 '''
 import gc
@@ -175,26 +175,43 @@ def bev_box_overlap(boxes, qboxes, criterion=-1):
     return riou
 
 
+# 以非python方式编译，编译原生多线程
+# 编译器将编译一个版本，并行运行多个原生的线程（没有GIL）
 @numba.jit(nopython=True, parallel=True)
 def d3_box_overlap_kernel(boxes, qboxes, rinc, criterion=-1):
+    """
+    计算box的3D iou
+    Args:
+        boxes:一个part中的全部gt，以第一个part为例(642,7) [x,y,z,dx,dy,dz,alpha]
+        query_boxes：一个part中的全部dt，以第一个part为例(233,7)
+        rinc:在鸟瞰图视角下的iou（642，233）重叠部分的面积
+    Returns:
+        返回3D iou-->rinc
+    """
     # ONLY support overlap in CAMERA, not lidar.？？？？？？？？？？？？？//
     # TODO: change to use prange for parallel mode, should check the difference
     N, K = boxes.shape[0], qboxes.shape[0] #
     for i in numba.prange(N): # 遍历每个gt box
-        for j in numba.prange(K): # 遍历要检测的图像
+        for j in numba.prange(K): # # 遍历dt遍历要检测的图像
+            # 如果鸟瞰视角存在重叠
             if rinc[i, j] > 0:  # 如果高度方向有重叠
                 # iw = (min(boxes[i, 1] + boxes[i, 4], qboxes[j, 1] +
                 #         qboxes[j, 4]) - max(boxes[i, 1], qboxes[j, 1]))
-                #  # 重叠部分的高度
+
+                #重叠部分的高度(相机坐标系下y轴是高度，即iw)
+                # 这里的1是y轴，在相机坐标系下就是高度方向，重叠高度=上边缘的最小值-下边缘的最大值
                 iw = (
                     min(boxes[i, 1], qboxes[j, 1]) - # # 重叠部分的最高点（取两个图像各自最高点的最小值）
                     max(boxes[i, 1] - boxes[i, 4],
                         qboxes[j, 1] - qboxes[j, 4])) # 重叠部分的最低点（取两个图像各自最低点的最大值）
-
+                # 如果重叠高度 > 0
                 if iw > 0:# 如果宽度方向有重叠
+                    # 1.求两个box的体积
                     area1 = boxes[i, 3] * boxes[i, 4] * boxes[i, 5]  # gt box 的面积
                     area2 = qboxes[j, 3] * qboxes[j, 4] * qboxes[j, 5]  #检测图像的面积
+                    # 2.求交集体积
                     inc = iw * rinc[i, j] # 重叠部分的面积
+                    # 3.根据criterion，计算并集体积
                     if criterion == -1: # 默认执行criterion = -1
                         ua = (area1 + area2 - inc) # 总的面积（交集）
                     elif criterion == 0:
@@ -203,15 +220,27 @@ def d3_box_overlap_kernel(boxes, qboxes, rinc, criterion=-1):
                         ua = area2
                     else:
                         ua = inc
+                    # 4.计算交并比
                     rinc[i, j] = inc / ua  # 计算得到iou=================================
                 else:
                     rinc[i, j] = 0.0  # 否则就没有重叠
 
 # boxes是GT， 
 def d3_box_overlap(boxes, qboxes, criterion=-1):
+    """
+    计算鸟瞰图视角下box的iou（带旋转角）
+    Args:
+        boxes:一个part中的全部gt，以第一个part为例(642,7) [x,y,z,dx,dy,dz,alpha]
+        query_boxes：一个part中的全部dt，以第一个part为例(233,7)
+        rinc:在鸟瞰图视角下的iou（642，233）
+    Returns:
+        返回3D iou-->rinc
+    """
     from .rotate_iou import rotate_iou_gpu_eval # mmdet3d/core/evaluation/kitti_utils/rotate_iou.py
+    # 1 rinc:在鸟瞰图视角下的iou（642，233） 高度重叠面积  五维((x,z,lh长高,r))
     rinc = rotate_iou_gpu_eval(boxes[:, [0, 2, 3, 5, 6]], # （9，7）  只要5维 ： centers, dims,angles(clockwise when positive) with the shape of [N, 5].
                                qboxes[:, [0, 2, 3, 5, 6]], 2) # iou = np.zeros((N, K), dtype=np.float32
+    # 2 计算iou
     d3_box_overlap_kernel(boxes, qboxes, rinc, criterion)
     return rinc # (9,9)
 
