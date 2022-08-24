@@ -777,7 +777,7 @@ def eval_class(gt_annos,
                         compute_aos=compute_aos)
                     idx += num_part
                 
-                # 4.2.3 根据不同类别，难度和最小iou阈值以及recall阈值，计算指标
+                # 4.2.3 根据不同类别，难度和最小iou阈值以及recall阈值，计算指标!!!!!!!!!!!!!!!!
                 for i in range(len(thresholds)):
                     # m:类比，l:难度，k:min_overlap, i:threshold
                     # pr:（41，4）--> tp, fp, fn, similarity
