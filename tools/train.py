@@ -13,7 +13,7 @@ from tensorboardX import SummaryWriter
 torch.backends.cudnn.enabled = False
 
 # ros2
-import rclpy
+# import rclpy
 
 
 # 配置gpu
@@ -210,6 +210,11 @@ def main():
 
 
 if __name__ == '__main__':
-    rclpy.init() # 添加
-    main()
-    rclpy.shutdown()
+    try:
+        import rclpy
+        rclpy.init() # 添加
+        main()
+        rclpy.shutdown()
+    except:
+        main()
+

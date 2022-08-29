@@ -5,7 +5,10 @@ from ...ops.iou3d_nms import iou3d_nms_utils
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 
 # ros2 rviz
-from tools.visualize_ros2 import PointCloudPublisher
+try:
+    from tools.visualize_ros2 import PointCloudPublisher
+except:
+    print('No module named rclpy')
 import numpy as np
 
 class Point3DSSD(Detector3DTemplate):

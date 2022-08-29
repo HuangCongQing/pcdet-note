@@ -20,7 +20,7 @@ from pcdet.models import build_network
 from pcdet.utils import common_utils
 
 # ros2
-import rclpy
+# import rclpy
 
 
 
@@ -203,6 +203,10 @@ def main():
 
 
 if __name__ == '__main__':
-    rclpy.init() # 添加
-    main()
-    rclpy.shutdown()
+    try:
+        import rclpy
+        rclpy.init() # 添加
+        main()
+        rclpy.shutdown()
+    except:
+        main()
