@@ -247,6 +247,7 @@ def d3_box_overlap(boxes, qboxes, criterion=-1):
     return rinc
 
 
+# 针对每一帧处理
 @numba.jit(nopython=True)
 def compute_statistics_jit(overlaps,
                            gt_datas,
@@ -294,14 +295,14 @@ def compute_statistics_jit(overlaps,
 
     # 该处的初始化针对dt
     assigned_detection = [False] * det_size # 存储dt是否匹配了gt
-    ignored_threshold = [False] * det_size # 如果dt分数低于阈值，则标记为True
+    ignored_threshold = [False] * det_size # 如果dt分数低于阈值，则标记为True  0
 
     # 如果计算fp: 预测为真，实际为假
     if compute_fp:
         # 遍历dt 
         for i in range(det_size):
             # 如果分数低于阈值
-            if (dt_scores[i] < thresh):
+            if (dt_scores[i] < thresh): # 0
                 # 忽略该box
                 ignored_threshold[i] = True
 
@@ -364,7 +365,7 @@ def compute_statistics_jit(overlaps,
         # 如果gt找到了匹配，并且gt标志为忽略或者dt标志为忽略，则assigned_detection标记为True
         elif ((valid_detection != NO_DETECTION)
               and (ignored_gt[i] == 1 or ignored_det[det_idx] == 1)):
-            assigned_detection[det_idx] = True
+            assigned_detection[det_idx] = True # dt找到了匹配
         # 否则有效gt找到了匹配
         elif valid_detection != NO_DETECTION:
             tp += 1
@@ -376,7 +377,7 @@ def compute_statistics_jit(overlaps,
                 delta[delta_idx] = gt_alphas[i] - dt_alphas[det_idx] # 两个alpha相减，为delta
                 delta_idx += 1
 
-            assigned_detection[det_idx] = True
+            assigned_detection[det_idx] = True #dt找到了匹配
     
     # ============================ 3 计算fp，这是针对dt的 ============================
     # 在遍历完全部的gt和dt后，如果compute_fp为真，则计算fp
@@ -385,7 +386,7 @@ def compute_statistics_jit(overlaps,
         for i in range(det_size):
             # 如果以下四个条件全部为false，则fp加1
             # assigned_detection[i] == 0 --> dt没有分配gt
-            # ignored_det[i] != -1 and ignored_det[i] ！= 1 --> gnored_det[i] == 0 有效dt
+            # ignored_det[i] != -1 and ignored_det[i] ！= 1 --> ignored_det[i] == 0 有效dt
             # ignored_threshold[i] == false, 无法忽略该dt box
             if (not (assigned_detection[i] or ignored_det[i] == -1
                      or ignored_det[i] == 1 or ignored_threshold[i])):
@@ -720,11 +721,11 @@ def eval_class(gt_annos,
             # ignored_dets: 3769个元素,每个元素为（M,）为每个box的状态 0，1，-1
             # dontcares: 3769个元素，每个元素为(k,4) 注意K不相等
             # total_dc_num: 3769个元素，表示每帧点云dc box的数量
-            # total_num_valid_gt:全部有效box的数量: 2906
+            # total_num_valid_gt:全部有效box的数量: 2906个bbox
             (gt_datas_list, dt_datas_list, ignored_gts, ignored_dets,
              dontcares, total_dc_num, total_num_valid_gt) = rets
-            # 4.2 逐min_overlap遍历
-            for k, min_overlap in enumerate(min_overlaps[:, metric, m]):
+            # 4.2 逐min_overlap遍历：  array([0.7, 0.7])
+            for k, min_overlap in enumerate(min_overlaps[:, metric, m]): # m是class  [num_overlap, metric, class]. （2，3，3）
                 thresholdss = []
                 # 4.2.1 计算所有有效gt匹配上的dt的全部分数，共2838个box score和41个recall阈值点
                 for i in range(len(gt_annos)):
@@ -740,14 +741,14 @@ def eval_class(gt_annos,
                         min_overlap=min_overlap, # 最小iou阈值
                         thresh=0.0, # 忽略score低于此值的dt
                         compute_fp=False)
-                    tp, fp, fn, similarity, thresholds = rets
-                    thresholdss += thresholds.tolist() # list的加法和extend类似(2838,)
+                    tp, fp, fn, similarity, thresholds = rets # 没有真正计算指标，而是获取thresholdss
+                    thresholdss += thresholds.tolist() # 保存list的加法和extend类似(2838,)
                 thresholdss = np.array(thresholdss)
                 thresholds = get_thresholds(thresholdss, total_num_valid_gt) # 获取41个recall阈值点
                 thresholds = np.array(thresholds)
+
                 pr = np.zeros([len(thresholds), 4]) # (41, 4)
                 idx = 0
-
                 # 4.2.2 遍历101个part，在part内逐帧逐recall_threshold计算tp, fp, fn, similarity，累计pr
                 for j, num_part in enumerate(split_parts):
                     gt_datas_part = np.concatenate(
@@ -760,10 +761,10 @@ def eval_class(gt_annos,
                         ignored_dets[idx:idx + num_part], 0) # (M,)
                     ignored_gts_part = np.concatenate(
                         ignored_gts[idx:idx + num_part], 0) # (N,)
-                    # 真正计算指标，融合统计结果
+                    # 真正计算指标，融合统计结果 里面包含compute_statistics_jit
                     fused_compute_statistics(
                         parted_overlaps[j],
-                        pr,
+                        pr, # <<<<<<<<<<<<<<<<目的
                         total_gt_num[idx:idx + num_part],
                         total_dt_num[idx:idx + num_part],
                         total_dc_num[idx:idx + num_part],
@@ -779,14 +780,14 @@ def eval_class(gt_annos,
                     idx += num_part
                 
                 # 4.2.3 根据不同类别，难度和最小iou阈值以及recall阈值，计算指标!!!!!!!!!!!!!!!!
-                for i in range(len(thresholds)):
+                for i in range(len(thresholds)): # （41
                     # m:类比，l:难度，k:min_overlap, i:threshold
                     # pr:（41，4）--> tp, fp, fn, similarity
                     recall[m, l, k, i] = pr[i, 0] / (pr[i, 0] + pr[i, 2]) # recall = tp / (tp + fn) 真实值 （3，3，2，41）
                     precision[m, l, k, i] = pr[i, 0] / (pr[i, 0] + pr[i, 1]) # precision = tp / (tp + fp) 预测值 （3，3，2，41）
                     if compute_aos:
                         aos[m, l, k, i] = pr[i, 3] / (pr[i, 0] + pr[i, 1]) # aos = similarity / (tp + fp) 
-                # 4.2.4 因为pr曲线是外弧形，按照threshold取该节点后面的最大值，相当于按照节点截取矩形
+                # 4.2.4 因为pr曲线是外弧形，按照threshold取该节点后面的最大值，相当于按照节点截取矩形 https://www.yuque.com/huangzhongqing/hre6tf/fp540l#Ni8Nv
                 for i in range(len(thresholds)):
                     precision[m, l, k, i] = np.max(
                         precision[m, l, k, i:], axis=-1)
@@ -800,16 +801,16 @@ def eval_class(gt_annos,
     }
     return ret_dict
 
-
+# 输入维度（3，3，2，41）
 def get_mAP(prec):
     """
     map:pr曲线的面积，按照分的份数区分mAP_R11和mAP_R40
     """
     sums = 0
     # 每隔四个取一个点，假设宽度为1，最后归一化
-    for i in range(0, prec.shape[-1], 4):
+    for i in range(0, prec.shape[-1], 4): # 遍历最后41列
         sums = sums + prec[..., i]
-    return sums / 11 * 100 
+    return sums / 11 * 100  # 输出维度为(3，3，2）
 
 
 def get_mAP_R40(prec):

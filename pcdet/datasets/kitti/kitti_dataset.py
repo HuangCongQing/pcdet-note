@@ -1,7 +1,7 @@
 '''
 Author: https://blog.csdn.net/weixin_44128857/article/details/108516213
 Date: 2021-07-30 11:53:21
-LastEditTime: 2022-07-25 00:49:25
+LastEditTime: 2022-08-29 22:30:54
 LastEditors: Please set LastEditors
 Description: 最重要函数:def get_infos()==========================================================
 FilePath: /PCDet/pcdet/datasets/kitti/kitti_dataset.py
@@ -560,7 +560,8 @@ class KittiDataset(DatasetTemplate):
             #如果'annos'没在kitti信息里面，直接返回空字典。实际上在里面呢
             return None, {}
 
-        from .kitti_object_eval_python import eval as kitti_eval
+        # from .kitti_object_eval_python import eval as kitti_eval
+        from .kitti_object_eval_python import eval_note as kitti_eval
 
         #复制一下参数det_annos
         #copy.deepcopy()在元组和列表的嵌套上的效果是一样的，都是进行了深拷贝（递归的）
