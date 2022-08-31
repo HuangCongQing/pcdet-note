@@ -1,14 +1,5 @@
 # coding:utf-8
 
-"""
-******************************************************************************
- * Copyright (C) 2022 AutoX, Inc. All Rights Reserved.
-******************************************************************************
-author: shimingli
-date: 2022-05-22
-description:
-
-"""
 
 import os
 import sys

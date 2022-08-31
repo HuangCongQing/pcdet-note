@@ -920,7 +920,7 @@ def get_official_eval_result(gt_annos, dt_annos, current_classes, PR_detail_dict
         PR_detail_dict:None
     """
     # 给不同的类别设置不同的阈值
-    # 6类在easy、moderate和hard的iou阈值
+    # 6类在easy、moderate和hard的iou阈值!!三行主要是3是['bbox', 'bev', '3d'] 
     overlap_0_7 = np.array([[0.7, 0.5, 0.5, 0.7, 0.5, 0.7], 
                             [0.7, 0.5, 0.5, 0.7, 0.5, 0.7],
                             [0.7, 0.5, 0.5, 0.7, 0.5, 0.7]])
