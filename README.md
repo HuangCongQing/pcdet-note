@@ -1,3 +1,12 @@
+<!--
+ * @Description: 
+ * @Author: HCQ
+ * @Company(School): UCAS
+ * @Email: 1756260160@qq.com
+ * @Date: 2022-08-05 22:17:19
+ * @LastEditTime: 2022-09-04 15:05:38
+ * @FilePath: /PCDet/README.md
+-->
 <!-- <img src="docs/open_mmlab.png" align="right" width="30%">
 
 # OpenPCDet
@@ -12,6 +21,21 @@ It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/18
 ## Learning
 
 Docs:[https://www.yuque.com/huangzhongqing/hre6tf/vy6gd2](https://www.yuque.com/huangzhongqing/hre6tf/vy6gd2)
+
+TODO：
+
+*  目标检测框架(pcdet+mmdetection3d+det3d+paddle3d)文章撰写
+
+代码注解
+
+* [config yaml配置文件注释(eg.pointpillar.yaml)](tools/cfgs/kitti_models/pointpillar.yaml)
+
+* [kitti评测详细介绍（可适配自己的数据集评测）](pcdet/datasets/kitti/kitti_object_eval_python)
+
+* [...]()
+
+
+### 运行
 
 ```
 # pointpillars
