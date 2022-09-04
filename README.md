@@ -4,7 +4,7 @@
  * @Company(School): UCAS
  * @Email: 1756260160@qq.com
  * @Date: 2022-08-05 22:17:19
- * @LastEditTime: 2022-09-04 15:05:38
+ * @LastEditTime: 2022-09-04 15:10:34
  * @FilePath: /PCDet/README.md
 -->
 <!-- <img src="docs/open_mmlab.png" align="right" width="30%">
@@ -33,6 +33,14 @@ TODO：
 * [kitti评测详细介绍（可适配自己的数据集评测）](pcdet/datasets/kitti/kitti_object_eval_python)
 
 * [...]()
+
+
+**其他目标检测框架(pcdet+mmdetection3d+det3d+paddle3d)代码注解笔记：**
+
+1. pcdet:https://github.com/HuangCongQing/pcdet-note
+2. mmdetection3d:https://github.com/HuangCongQing/mmdetection3d-note
+3. det3d: TODO
+4. paddle3dL TODO
 
 
 ### 运行
