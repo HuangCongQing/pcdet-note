@@ -4,7 +4,7 @@
  * @Company(School): UCAS
  * @Email: 1756260160@qq.com
  * @Date: 2022-08-05 22:17:19
- * @LastEditTime: 2022-09-04 15:30:45
+ * @LastEditTime: 2022-09-10 11:19:34
  * @FilePath: /PCDet/README.md
 -->
 <!-- <img src="docs/open_mmlab.png" align="right" width="30%">
@@ -28,15 +28,15 @@ TODO：
 
 代码注解
 
-* [config yaml配置文件注释(eg.pointpillar.yaml)](tools/cfgs/kitti_models/pointpillar.yaml)
+* config yaml配置文件注释(eg.pointpillar.yaml):[tools/cfgs/kitti_models/pointpillar.yaml](tools/cfgs/kitti_models/pointpillar.yaml)
 
-* [kitti评测详细介绍（可适配自己的数据集评测）](pcdet/datasets/kitti/kitti_object_eval_python)
+* kitti评测详细介绍（可适配自己的数据集评测):[pcdet/datasets/kitti/kitti_object_eval_python](pcdet/datasets/kitti/kitti_object_eval_python)
 
 * 模型配置注释：[tools/cfgs/kitti_models/pointpillar.yaml](tools/cfgs/kitti_models/pointpillar.yaml)
 
 * 数据集配置注释：[tools/cfgs/dataset_configs/kitti_dataset.yaml](tools/cfgs/dataset_configs/kitti_dataset.yaml)
 
-* [...]()
+* [...](./)
 
 
 **其他目标检测框架(pcdet+mmdetection3d+det3d+paddle3d)代码注解笔记：**
