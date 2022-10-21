@@ -22,9 +22,8 @@ It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/18
 
 Docs:[https://www.yuque.com/huangzhongqing/hre6tf/vy6gd2](https://www.yuque.com/huangzhongqing/hre6tf/vy6gd2)
 
-TODO：
 
-*  目标检测框架(pcdet+mmdetection3d+det3d+paddle3d)文章撰写
+* 【202209】 [目标检测框架(pcdet+mmdetection3d+det3d+paddle3d)文章撰写](https://zhuanlan.zhihu.com/p/569189196)
 
 代码注解
 
