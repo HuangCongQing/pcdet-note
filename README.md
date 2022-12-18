@@ -18,12 +18,17 @@ It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/18
 --- -->
 
 
-## Learning
+## pcdet-Learning
 
 Docs:[https://www.yuque.com/huangzhongqing/hre6tf/vy6gd2](https://www.yuque.com/huangzhongqing/hre6tf/vy6gd2)
 
+  - [x] [【202212done】目标检测最新论文实时更新](https://zhuanlan.zhihu.com/p/591349104)
+  - [ ] 语义分割最新论文实时更新
+  - [x] [【202209done】目标检测框架(pcdet+mmdetection3d+det3d+paddle3d)文章撰写](https://zhuanlan.zhihu.com/p/569189196?)
+  - [ ] 数据集详细剖析：kitti&waymo&nuScenes
+  - [ ] Apollo学习https://github.com/HuangCongQing/apollo_note
 
-* 【202209】 [目标检测框架(pcdet+mmdetection3d+det3d+paddle3d)文章撰写](https://zhuanlan.zhihu.com/p/569189196)
+
 
 代码注解
 
