@@ -9,7 +9,7 @@
 -->
 <!-- <img src="docs/open_mmlab.png" align="right" width="30%">
 
-# OpenPCDet
+# OpenPCDet( v0.5.0)
 
 `OpenPCDet` is a clear, simple, self-contained open source project for LiDAR-based 3D object detection.
 
@@ -18,7 +18,7 @@ It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/18
 --- -->
 
 
-## pcdet-Learning
+## pcdet-Learning( based v0.5.0)
 
 Docs:[https://www.yuque.com/huangzhongqing/hre6tf/vy6gd2](https://www.yuque.com/huangzhongqing/hre6tf/vy6gd2)
 
