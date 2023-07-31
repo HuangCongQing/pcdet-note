@@ -24,6 +24,7 @@ class DataAugmentor(object):
             cur_augmentor = getattr(self, cur_cfg.NAME)(config=cur_cfg)
             self.data_augmentor_queue.append(cur_augmentor)
 
+    # gt数据采集部分
     def gt_sampling(self, config=None):
         db_sampler = database_sampler.DataBaseSampler(
             root_path=self.root_path,
