@@ -19,13 +19,17 @@ class DataAugmentor(object):
 
         for cur_cfg in aug_config_list:
             if not isinstance(augmentor_configs, list):
+                #不用数据增强的列表DISABLE_AUG_LIST
                 if cur_cfg.NAME in augmentor_configs.DISABLE_AUG_LIST:
                     continue
+            #使用partial，所以此刻只是把数据增强方法加入队列（data_dict=0）
+            # 执行数据增加的函数，并加入至data_augmentor_queue
             cur_augmentor = getattr(self, cur_cfg.NAME)(config=cur_cfg)
             self.data_augmentor_queue.append(cur_augmentor)
 
-    # gt数据采集部分
+    # gt数据采集部分self.gt_sampling >>>>>>>>>>>>>
     def gt_sampling(self, config=None):
+        # >>>>>>>>>>>>>pcdet/datasets/augmentor/database_sampler.py
         db_sampler = database_sampler.DataBaseSampler(
             root_path=self.root_path,
             sampler_cfg=config,

@@ -12,31 +12,36 @@ class DataBaseSampler(object):
         self.class_names = class_names
         self.sampler_cfg = sampler_cfg
         self.logger = logger
-        self.db_infos = {}
+        self.db_infos = {} # 保存增加的gt数据
+        # 按照类别分类
         for class_name in class_names:
             self.db_infos[class_name] = []
 
+        # DB_INFO_PATH: kitti_dbinfos_train.pkl
         for db_info_path in sampler_cfg.DB_INFO_PATH:
             db_info_path = self.root_path.resolve() / db_info_path
+            #按照类别加入数据各自的db数据
             with open(str(db_info_path), 'rb') as f:
                 infos = pickle.load(f)
                 [self.db_infos[cur_class].extend(infos[cur_class]) for cur_class in class_names]
-
+        
+        #过滤数据：执行函数最小点过滤（filter_by_min_points）和困难点过滤（filter_by_difficulty），我这里只用了filter_by_min_points过滤
         for func_name, val in sampler_cfg.PREPARE.items():
             self.db_infos = getattr(self, func_name)(self.db_infos, val)
 
-        self.sample_groups = {}
-        self.sample_class_num = {}
-        self.limit_whole_scene = sampler_cfg.get('LIMIT_WHOLE_SCENE', False)
+        self.sample_groups = {} #sample_num、pointer和indices
+        self.sample_class_num = {} #sample_num
+        self.limit_whole_scene = sampler_cfg.get('LIMIT_WHOLE_SCENE', False) #False
+        # SAMPLE_GROUPS: ['Car:15','Pedestrian:15', 'Cyclist:15'] # 样
         for x in sampler_cfg.SAMPLE_GROUPS:
             class_name, sample_num = x.split(':')
             if class_name not in class_names:
                 continue
-            self.sample_class_num[class_name] = sample_num
+            self.sample_class_num[class_name] = sample_num # 5
             self.sample_groups[class_name] = {
-                'sample_num': sample_num,
-                'pointer': len(self.db_infos[class_name]),
-                'indices': np.arange(len(self.db_infos[class_name]))
+                'sample_num': sample_num, # 需要采样多少个障碍物
+                'pointer': len(self.db_infos[class_name]), # db一共多少个障碍物
+                'indices': np.arange(len(self.db_infos[class_name])) # [0,1,2,...]
             }
 
     def __getstate__(self):
@@ -47,6 +52,7 @@ class DataBaseSampler(object):
     def __setstate__(self, d):
         self.__dict__.update(d)
 
+    # GT sample : 困难点过滤（filter_by_difficulty）
     def filter_by_difficulty(self, db_infos, removed_difficulty):
         new_db_infos = {}
         for key, dinfos in db_infos.items():
@@ -59,9 +65,11 @@ class DataBaseSampler(object):
                 self.logger.info('Database filter by difficulty %s: %d => %d' % (key, pre_len, len(new_db_infos[key])))
         return new_db_infos
 
+    # GT sample :  最小点过滤（filter_by_min_points）和困难点过滤（filter_by_difficulty）
     def filter_by_min_points(self, db_infos, min_gt_points_list):
+        # min_gt_points_list = ['Car:5', 'Pedestrian:5', 'Cyclist:5']
         for name_num in min_gt_points_list:
-            name, min_num = name_num.split(':')
+            name, min_num = name_num.split(':') # 'Car:5'
             min_num = int(min_num)
             if min_num > 0 and name in db_infos.keys():
                 filtered_infos = []
@@ -76,6 +84,7 @@ class DataBaseSampler(object):
 
         return db_infos
 
+    # 举例sample_group=5 ？？？？？
     def sample_with_fixed_number(self, class_name, sample_group):
         """
         Args:
@@ -86,9 +95,10 @@ class DataBaseSampler(object):
         """
         sample_num, pointer, indices = int(sample_group['sample_num']), sample_group['pointer'], sample_group['indices']
         if pointer >= len(self.db_infos[class_name]):
-            indices = np.random.permutation(len(self.db_infos[class_name]))
+            indices = np.random.permutation(len(self.db_infos[class_name])) # 随机排序
             pointer = 0
 
+        # 得到5个db_infos
         sampled_dict = [self.db_infos[class_name][idx] for idx in indices[pointer: pointer + sample_num]]
         pointer += sample_num
         sample_group['pointer'] = pointer
@@ -115,11 +125,13 @@ class DataBaseSampler(object):
         gt_boxes[:, 2] -= mv_height  # lidar view
         return gt_boxes, mv_height
 
+    # 将gt sample添加到scene中
     def add_sampled_boxes_to_scene(self, data_dict, sampled_gt_boxes, total_valid_sampled_dict):
         gt_boxes_mask = data_dict['gt_boxes_mask']
         gt_boxes = data_dict['gt_boxes'][gt_boxes_mask]
         gt_names = data_dict['gt_names'][gt_boxes_mask]
         points = data_dict['points']
+        # 
         if self.sampler_cfg.get('USE_ROAD_PLANE', False):
             sampled_gt_boxes, mv_height = self.put_boxes_on_road_planes(
                 sampled_gt_boxes, data_dict['road_plane'], data_dict['calib']
@@ -128,11 +140,12 @@ class DataBaseSampler(object):
             data_dict.pop('road_plane')
 
         obj_points_list = []
+        # 遍历需要加入的db_infos
         for idx, info in enumerate(total_valid_sampled_dict):
             file_path = self.root_path / info['path']
             obj_points = np.fromfile(str(file_path), dtype=np.float32).reshape(
                 [-1, self.sampler_cfg.NUM_POINT_FEATURES])
-
+            # db_infos
             obj_points[:, :3] += info['box3d_lidar'][:3]
 
             if self.sampler_cfg.get('USE_ROAD_PLANE', False):
@@ -144,9 +157,11 @@ class DataBaseSampler(object):
         obj_points = np.concatenate(obj_points_list, axis=0)
         sampled_gt_names = np.array([x['name'] for x in total_valid_sampled_dict])
 
+        # 扩大bbox范围
         large_sampled_gt_boxes = box_utils.enlarge_box3d(
             sampled_gt_boxes[:, 0:7], extra_width=self.sampler_cfg.REMOVE_EXTRA_WIDTH
         )
+        # 
         points = box_utils.remove_points_in_boxes3d(points, large_sampled_gt_boxes)
         points = np.concatenate([obj_points, points], axis=0)
         gt_names = np.concatenate([gt_names, sampled_gt_names], axis=0)
@@ -156,6 +171,7 @@ class DataBaseSampler(object):
         data_dict['points'] = points
         return data_dict
 
+    # main入口
     def __call__(self, data_dict):
         """
         Args:
@@ -168,12 +184,14 @@ class DataBaseSampler(object):
         gt_boxes = data_dict['gt_boxes']
         gt_names = data_dict['gt_names'].astype(str)
         existed_boxes = gt_boxes
-        total_valid_sampled_dict = []
+        total_valid_sampled_dict = [] # 合法的样本
+        # 遍历不同的类别
         for class_name, sample_group in self.sample_groups.items():
             if self.limit_whole_scene:
-                num_gt = np.sum(class_name == gt_names)
-                sample_group['sample_num'] = str(int(self.sample_class_num[class_name]) - num_gt)
+                num_gt = np.sum(class_name == gt_names) # 已经存在的障碍物数量
+                sample_group['sample_num'] = str(int(self.sample_class_num[class_name]) - num_gt) # 更新需要增加的GT数量
             if int(sample_group['sample_num']) > 0:
+                # 得到5个db_infos
                 sampled_dict = self.sample_with_fixed_number(class_name, sample_group)
 
                 sampled_boxes = np.stack([x['box3d_lidar'] for x in sampled_dict], axis=0).astype(np.float32)
@@ -181,19 +199,21 @@ class DataBaseSampler(object):
                 if self.sampler_cfg.get('DATABASE_WITH_FAKELIDAR', False): # 
                     sampled_boxes = box_utils.boxes3d_kitti_fakelidar_to_lidar(sampled_boxes)
 
+                # 根据iou判断碰撞检测
                 iou1 = iou3d_nms_utils.boxes_bev_iou_cpu(sampled_boxes[:, 0:7], existed_boxes[:, 0:7])
-                iou2 = iou3d_nms_utils.boxes_bev_iou_cpu(sampled_boxes[:, 0:7], sampled_boxes[:, 0:7])
+                iou2 = iou3d_nms_utils.boxes_bev_iou_cpu(sampled_boxes[:, 0:7], sampled_boxes[:, 0:7]) # 自己和自己？？？
                 iou2[range(sampled_boxes.shape[0]), range(sampled_boxes.shape[0])] = 0
                 iou1 = iou1 if iou1.shape[1] > 0 else iou2
-                valid_mask = ((iou1.max(axis=1) + iou2.max(axis=1)) == 0).nonzero()[0]
+                valid_mask = ((iou1.max(axis=1) + iou2.max(axis=1)) == 0).nonzero()[0] # 根据iou得到筛选出的合法的mask
                 valid_sampled_dict = [sampled_dict[x] for x in valid_mask]
                 valid_sampled_boxes = sampled_boxes[valid_mask]
 
                 existed_boxes = np.concatenate((existed_boxes, valid_sampled_boxes), axis=0)
-                total_valid_sampled_dict.extend(valid_sampled_dict)
+                total_valid_sampled_dict.extend(valid_sampled_dict) # <<<<<<<<<<<<<<<<<<<<<<<<<<
 
         sampled_gt_boxes = existed_boxes[gt_boxes.shape[0]:, :]
         if total_valid_sampled_dict.__len__() > 0:
+            # 将gt sample添加到scene中
             data_dict = self.add_sampled_boxes_to_scene(data_dict, sampled_gt_boxes, total_valid_sampled_dict)
 
         data_dict.pop('gt_boxes_mask')
