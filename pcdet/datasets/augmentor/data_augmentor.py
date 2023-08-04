@@ -28,6 +28,7 @@ class DataAugmentor(object):
             self.data_augmentor_queue.append(cur_augmentor)
 
     # gt数据采集部分self.gt_sampling >>>>>>>>>>>>>
+    # 通过配置参数（ NAME: gt_sampling #）执行 self.gt_sampling
     def gt_sampling(self, config=None):
         # >>>>>>>>>>>>>pcdet/datasets/augmentor/database_sampler.py
         db_sampler = database_sampler.DataBaseSampler(

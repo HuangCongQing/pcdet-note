@@ -146,6 +146,7 @@ class DatasetTemplate(torch_data.Dataset):
             gt_boxes_mask = np.array([n in self.class_names for n in data_dict['gt_names']], dtype=np.bool_)
 
             # 数据增强 传入字典参数，**data_dict是将data_dict里面的key-value对都拿出来
+            # pcdet/datasets/augmentor/data_augmentor.py
             data_dict = self.data_augmentor.forward(
                 data_dict={
                     **data_dict, # **data_dict是将data_dict里面的key-value对都拿出来
