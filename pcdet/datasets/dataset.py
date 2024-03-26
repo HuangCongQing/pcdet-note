@@ -18,7 +18,7 @@ class DatasetTemplate(torch_data.Dataset):
         self.class_names = class_names # ['Car', 'Pedestrian', 'Cyclist']
         self.logger = logger
         # 读取字典中DATA_PATH的值作为数据集的根目录，返回Path()对象
-        self.root_path = root_path if root_path is not None else Path(self.dataset_cfg.DATA_PATH) # bin文件路径 /home/hcq/huituo_server/data/kitti/training/velodyne/000008.bin
+        self.root_path = root_path if root_path is not None else Path(self.dataset_cfg.DATA_PATH) # bin文件路径 /you/path/data/kitti/training/velodyne/000008.bin
         self.logger = logger
         if self.dataset_cfg is None or class_names is None:
             return
