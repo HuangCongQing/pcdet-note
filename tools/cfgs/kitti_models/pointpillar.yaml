@@ -15,7 +15,7 @@ DATA_CONFIG:
             'test': False # 测试集不打乱
           }
 
-        - NAME: transform_points_to_voxels
+        - NAME: transform_points_to_voxels # 点云转换为pillar
           VOXEL_SIZE: [0.16, 0.16, 4] # #体素大小（x,y,z）
           MAX_POINTS_PER_VOXEL: 32 #每个体素的最大点数
           MAX_NUMBER_OF_VOXELS: { #最大体素数

@@ -41,6 +41,7 @@ class VoxelGeneratorWrapper():
                 max_num_voxels=max_num_voxels
             )
 
+    #  生成voxel具体实现
     def generate(self, points):
         if self.spconv_ver == 1:
             voxel_output = self._voxel_generator.generate(points)
@@ -112,7 +113,7 @@ class DataProcessor(object):
         
         return data_dict
 
-    # 将点云转换为pillar,使用spconv的VoxelGeneratorV2（yaml文件中有配置NAME: transform_points_to_voxels）
+    # pointpillar第一步!!!将点云转换为pillar,使用spconv的VoxelGeneratorV2（yaml文件中有配置NAME: transform_points_to_voxels）
     def transform_points_to_voxels(self, data_dict=None, config=None):
         """
         将点云转换为pillar,使用spconv的VoxelGeneratorV2
